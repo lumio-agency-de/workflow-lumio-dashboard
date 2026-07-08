@@ -1,0 +1,140 @@
+@import "tailwindcss";
+
+/* =========================================================================
+   Lumio Design-System (dunkel, Glow, Glas) – abgeleitet aus der Lumio-Website
+   ========================================================================= */
+@theme {
+  /* Farben */
+  --color-bg: #06090f; /* sehr dunkler Hintergrund */
+  --color-ink: #eef3fa; /* helle Schrift */
+  --color-muted: #9aabbf; /* gedaempfte Schrift */
+  --color-line: rgba(180, 205, 235, 0.14); /* dezente Linien/Raender */
+  --color-accent: #9cc4e6; /* Lumio-Akzent (helles Blau) */
+  --color-accent-2: #d7e7f5; /* hellere Akzentvariante */
+  --color-panel: rgba(12, 19, 31, 0.74); /* Panel-Hintergrund (ueber dem Bild lesbar) */
+  --color-glow: rgba(156, 196, 230, 0.45); /* Leucht-Effekt */
+
+  /* Schriften (werden in layout.tsx per next/font gesetzt) */
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-space-grotesk);
+
+  /* Weiches Ease wie auf der Website */
+  --ease-lumio: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Grundlayout. Der Hintergrund kommt aus der "Szene" (Bild + Schleier + Glow). */
+html {
+  color-scheme: dark;
+  background: var(--color-bg); /* Fallback, bevor das Bild geladen ist */
+}
+
+body {
+  background: transparent;
+  color: var(--color-ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+/* =========================================================================
+   Hintergrund-Szene wie auf der Lumio-Website
+   (fixiertes Standbild "moon-walk" + Verlaufs-Schleier + pulsierender Glow)
+   ========================================================================= */
+.scene {
+  position: fixed;
+  inset: 0;
+  z-index: -3;
+  overflow: hidden;
+  background: var(--color-bg);
+  pointer-events: none;
+}
+.scene__img {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  object-position: 50% 46%; /* auf das "Portal" im Bild zentriert */
+}
+
+/* Schleier: dimmt Mitte + Raender, damit Text ueberall gut lesbar bleibt */
+.scene__veil {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(78% 62% at 50% 44%, rgba(6, 9, 15, 0.6) 0%, rgba(6, 9, 15, 0.26) 55%, rgba(6, 9, 15, 0.06) 82%),
+    radial-gradient(120% 85% at 50% 16%, rgba(6, 9, 15, 0) 40%, rgba(6, 9, 15, 0.5) 100%),
+    linear-gradient(180deg, rgba(6, 9, 15, 0.8) 0%, rgba(6, 9, 15, 0.36) 26%, rgba(6, 9, 15, 0.44) 62%, rgba(6, 9, 15, 0.92) 100%);
+}
+
+/* Sanft pulsierender Glow am Portal */
+.scene__pulse {
+  position: fixed;
+  left: 50%;
+  top: 44%;
+  z-index: -2;
+  height: 44vmin;
+  width: 44vmin;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, var(--color-glow) 0%, rgba(156, 196, 230, 0) 68%);
+  mix-blend-mode: screen;
+  opacity: 0.28;
+  animation: scene-pulse 7s var(--ease-lumio) infinite;
+}
+@keyframes scene-pulse {
+  0%, 100% { opacity: 0.2; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 0.36; transform: translate(-50%, -50%) scale(1.08); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scene__pulse { animation: none; }
+}
+
+/* Wiederverwendbares Panel (leicht durchscheinend ueber dem Hintergrundbild).
+   Bewusst OHNE backdrop-filter-Blur: das spart viel Rechenleistung
+   (fluessiger auf schwaecheren Rechnern) und bleibt gut lesbar. */
+.glass {
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 24px 48px -34px rgba(0, 0, 0, 0.7);
+}
+
+/* Akzent-Textverlauf (fuer Ueberschriften) */
+.text-gradient {
+  background: linear-gradient(180deg, var(--color-ink), var(--color-accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Dezenter Leuchtrand fuer Akzent-Elemente */
+.glow-accent {
+  box-shadow: 0 10px 40px -12px var(--color-glow);
+}
+
+/* Dezente Scrollbar passend zum dunklen Design */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 196, 230, 0.25) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(156, 196, 230, 0.2);
+  border-radius: 999px;
+}
+
+/* Sanftes Pulsieren (z. B. fuer Live-Punkte) */
+@keyframes lumio-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.animate-lumio-pulse {
+  animation: lumio-pulse 1.8s var(--ease-lumio) infinite;
+}

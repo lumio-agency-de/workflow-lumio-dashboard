@@ -1,0 +1,138 @@
+// Gmail-Funktionen (Posteingang lesen, antworten). Nur serverseitig.
+import { google } from "googleapis";
+import type { MailItem } from "@/lib/types";
+import { categorizeEmail } from "@/lib/demo-data";
+
+// Client-Typ direkt aus googleapis ableiten (verhindert Typkonflikte)
+type OAuthClient = InstanceType<typeof google.auth.OAuth2>;
+
+// Einen Header-Wert (z. B. "From") aus der Gmail-Antwort holen
+function header(headers: { name?: string | null; value?: string | null }[], name: string) {
+  return headers.find((h) => h.name?.toLowerCase() === name.toLowerCase())?.value ?? "";
+}
+
+// Absender "Max Mustermann <max@example.de>" in Name + Adresse zerlegen
+function parseFrom(from: string): { name: string; email: string } {
+  const match = from.match(/^(.*?)\s*<(.+?)>$/);
+  if (match) return { name: match[1].replace(/"/g, "").trim() || match[2], email: match[2] };
+  return { name: from, email: from };
+}
+
+// Posteingang laden (die neuesten Nachrichten)
+export async function listRecentMessages(
+  client: OAuthClient,
+  maxResults = 20
+): Promise<MailItem[]> {
+  const gmail = google.gmail({ version: "v1", auth: client });
+
+  // Liste der Nachrichten-IDs im Posteingang
+  const list = await gmail.users.messages.list({
+    userId: "me",
+    maxResults,
+    q: "in:inbox",
+  });
+  const ids = (list.data.messages ?? []).map((m) => m.id).filter(Boolean) as string[];
+
+  // Zu jeder ID die Kopf-Daten laden
+  const details = await Promise.all(
+    ids.map((id) =>
+      gmail.users.messages.get({
+        userId: "me",
+        id,
+        format: "metadata",
+        metadataHeaders: ["From", "Subject", "Date"],
+      })
+    )
+  );
+
+  return details.map((d) => {
+    const msg = d.data;
+    const headers = msg.payload?.headers ?? [];
+    const from = parseFrom(header(headers, "From"));
+    const subject = header(headers, "Subject") || "(kein Betreff)";
+    const dateHeader = header(headers, "Date");
+    const unread = (msg.labelIds ?? []).includes("UNREAD");
+    return {
+      id: msg.id ?? "",
+      fromName: from.name,
+      fromEmail: from.email,
+      subject,
+      snippet: msg.snippet ?? "",
+      date: dateHeader ? new Date(dateHeader).toISOString() : new Date().toISOString(),
+      unread,
+      category: categorizeEmail(subject, from.email),
+    };
+  });
+}
+
+// E-Mail (optional mit PDF-Anhang) ueber das verbundene Gmail-Konto versenden
+export async function sendMailWithAttachment(
+  client: OAuthClient,
+  input: {
+    to: string;
+    subject: string;
+    text: string;
+    attachment?: { filename: string; data: Buffer };
+  }
+): Promise<void> {
+  const gmail = google.gmail({ version: "v1", auth: client });
+
+  // Betreff mit Umlauten korrekt kodieren (RFC 2047)
+  const subjectEnc = `=?UTF-8?B?${Buffer.from(input.subject, "utf8").toString("base64")}?=`;
+
+  // Die Roh-Nachricht im MIME-Format zusammenbauen
+  let mime = `To: ${input.to}\r\nSubject: ${subjectEnc}\r\nMIME-Version: 1.0\r\n`;
+
+  if (input.attachment) {
+    const boundary = "lumio_" + Date.now().toString(36);
+    mime +=
+      `Content-Type: multipart/mixed; boundary="${boundary}"\r\n\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Type: text/plain; charset="UTF-8"\r\n` +
+      `Content-Transfer-Encoding: base64\r\n\r\n` +
+      Buffer.from(input.text, "utf8").toString("base64") +
+      `\r\n--${boundary}\r\n` +
+      `Content-Type: application/pdf; name="${input.attachment.filename}"\r\n` +
+      `Content-Disposition: attachment; filename="${input.attachment.filename}"\r\n` +
+      `Content-Transfer-Encoding: base64\r\n\r\n` +
+      input.attachment.data.toString("base64") +
+      `\r\n--${boundary}--`;
+  } else {
+    mime +=
+      `Content-Type: text/plain; charset="UTF-8"\r\n` +
+      `Content-Transfer-Encoding: base64\r\n\r\n` +
+      Buffer.from(input.text, "utf8").toString("base64");
+  }
+
+  // Gmail erwartet die Nachricht base64url-kodiert
+  await gmail.users.messages.send({
+    userId: "me",
+    requestBody: { raw: Buffer.from(mime).toString("base64url") },
+  });
+}
+
+// Volltext einer Nachricht laden (fuer den KI-Antwortvorschlag)
+export async function getMessageText(
+  client: OAuthClient,
+  id: string
+): Promise<{ subject: string; from: string; body: string }> {
+  const gmail = google.gmail({ version: "v1", auth: client });
+  const d = await gmail.users.messages.get({ userId: "me", id, format: "full" });
+  const headers = d.data.payload?.headers ?? [];
+  const subject = header(headers, "Subject");
+  const from = header(headers, "From");
+
+  // Text aus dem (ggf. verschachtelten) Nachrichtenkoerper zusammensuchen
+  let body = "";
+  const walk = (part?: { mimeType?: string | null; body?: { data?: string | null }; parts?: unknown[] }) => {
+    if (!part) return;
+    if (part.mimeType === "text/plain" && part.body?.data) {
+      body += Buffer.from(part.body.data, "base64").toString("utf8");
+    }
+    (part.parts as typeof part[] | undefined)?.forEach(walk);
+  };
+  walk(d.data.payload as Parameters<typeof walk>[0]);
+  if (!body) body = d.data.snippet ?? "";
+
+  return { subject, from, body };
+}
