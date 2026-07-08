@@ -1,0 +1,144 @@
+// Prisma-Schema: beschreibt alle Datenbank-Tabellen des Angebots-Tools.
+// Datenbank ist SQLite (eine einzelne Datei dev.db) – ideal fuer 2 Nutzer.
+
+// Generator: erzeugt den Prisma-Client (Code zum Datenbankzugriff) nach src/generated/prisma
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// Datenquelle: SQLite. Die Verbindungs-URL steht in prisma.config.ts / .env (DATABASE_URL)
+datasource db {
+  provider = "sqlite"
+}
+
+// Benutzerkonto fuer den Login (nur Miko und Nevio, keine offene Registrierung)
+model User {
+  id           String   @id @default(cuid()) // eindeutige ID
+  username     String   @unique              // Login-Name (z. B. "miko")
+  name         String                        // Anzeigename (z. B. "Miko Bruell")
+  passwordHash String                        // Passwort NUR gehasht (bcrypt), nie Klartext
+  createdAt    DateTime @default(now())      // Erstellzeitpunkt
+
+  googleAccount GoogleAccount?               // verbundenes Google-Workspace-Konto (optional)
+}
+
+// Verbundenes Google-Konto fuer Gmail + Kalender (OAuth-Tokens).
+// Wird angelegt, sobald ein Nutzer sein Google-Workspace-Konto verbindet.
+model GoogleAccount {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email        String                        // verbundene Google-Adresse
+  accessToken  String                        // kurzlebiges Zugriffs-Token
+  refreshToken String   @default("")         // langlebiges Token zum Erneuern
+  expiryDate   DateTime?                      // Ablaufzeitpunkt des accessToken
+  scope        String   @default("")         // erteilte Berechtigungen
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// Anfrage (Lead) – wird automatisch aus E-Mails der Kategorie "Anfrage" angelegt
+// und durchlaeuft die Pipeline: neu -> angebot_erstellt -> angebot_gesendet -> gewonnen/verloren
+model Lead {
+  id         String    @id @default(cuid())
+  mailId     String    @unique              // Gmail-Nachrichten-ID (verhindert Duplikate)
+  fromName   String                          // Absendername
+  fromEmail  String                          // Absenderadresse
+  subject    String                          // Betreff der Anfrage
+  snippet    String    @default("")          // Textauszug der Mail
+  mailDate   DateTime                        // Datum der Mail
+  status     String    @default("neu")       // neu | angebot_erstellt | angebot_gesendet | gewonnen | verloren
+  emailDraft String    @default("")          // gespeicherter Mail-Vorschlag fuer den Versand
+  sentAt     DateTime?                        // wann das Angebot verschickt wurde
+  offerId    String?   @unique               // verknuepftes (automatisch erstelltes) Angebot
+  offer      Offer?    @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+// Notiz zu einem durchgefuehrten Telefonat (Cold Call)
+model CallNote {
+  id        String   @id @default(cuid())
+  company   String   @default("")            // angerufene Firma
+  contact   String   @default("")            // Ansprechpartner
+  phone     String   @default("")            // Telefonnummer
+  outcome   String   @default("nicht_erreicht") // erreicht | nicht_erreicht | interesse | kein_interesse | termin
+  notes     String   @default("")            // wie ist das Gespraech gelaufen
+  nextStep  String   @default("")            // naechster Schritt (z. B. "Freitag erneut anrufen")
+  createdAt DateTime @default(now())
+}
+
+// Einfacher Schluessel-Wert-Speicher fuer editierbare Texte (z. B. Telefon-Skript)
+model AppText {
+  id        String   @id                     // z. B. "telefon-skript"
+  value     String   @default("")
+  updatedAt DateTime @updatedAt
+}
+
+// Offener Auftrag / Projekt (voll funktionsfaehig, in der Datenbank gespeichert)
+model Order {
+  id           String    @id @default(cuid())
+  title        String                         // Kurztitel des Auftrags
+  customerName String    @default("")         // Kunde
+  description  String    @default("")         // Beschreibung / Notizen
+  status       String    @default("offen")    // offen | in_arbeit | wartet | erledigt
+  priority     String    @default("normal")   // niedrig | normal | hoch
+  value        Float     @default(0)          // Auftragswert netto (optional)
+  progress     Int       @default(0)          // Fortschritt 0–100 %
+  dueDate      DateTime?                       // Frist (optional)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+// Paket / Leistungsposition – editierbar im Tool, NICHT im Code hart codiert
+model Package {
+  id           String   @id @default(cuid())
+  name         String                        // z. B. "Landingpage (1 Seite)"
+  description  String   @default("")         // Kurzbeschreibung
+  defaultPrice Float    @default(0)          // Standard-Einzelpreis netto in Euro
+  active       Boolean  @default(true)       // Inaktive Pakete tauchen im Formular nicht auf
+  sortOrder    Int      @default(0)          // Reihenfolge in der Liste
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// Ein erstelltes Angebot (Kopf-Daten + Kunde) – bildet den Verlauf
+model Offer {
+  id              String   @id @default(cuid())
+  number          String   @unique           // Angebotsnummer, z. B. ANG-2026-001
+  date            DateTime @default(now())    // Angebotsdatum
+  validUntil      DateTime                    // "gueltig bis" als konkretes Datum
+
+  // Kundendaten (Empfaenger des Angebots)
+  customerCompany String                      // Firmen- oder Personenname (Pflicht)
+  customerContact String   @default("")       // Ansprechpartner
+  customerStreet  String   @default("")       // Strasse + Hausnummer
+  customerZip     String   @default("")       // PLZ
+  customerCity    String   @default("")       // Ort
+  customerEmail   String   @default("")       // E-Mail (optional)
+  customerPhone   String   @default("")       // Telefon (optional)
+
+  notes           String   @default("")       // optionales Freitext-Notizfeld fuers PDF
+  total           Float    @default(0)         // berechnete Gesamtsumme netto
+  status          String   @default("offen")   // offen | angenommen | abgelehnt
+
+  items           OfferItem[]                  // die einzelnen Positionen
+  lead            Lead?                        // Anfrage, aus der dieses Angebot entstand (falls automatisch)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Eine einzelne Position innerhalb eines Angebots
+model OfferItem {
+  id        String   @id @default(cuid())
+  offerId   String                            // gehoert zu welchem Angebot
+  offer     Offer    @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  position  Int                               // laufende Pos.-Nr. (1, 2, 3, ...)
+  label     String                            // Bezeichnung der Leistung
+  quantity  Float    @default(1)              // Menge
+  unitPrice Float    @default(0)              // Einzelpreis netto (ggf. ueberschrieben)
+  lineTotal Float    @default(0)              // Menge * Einzelpreis
+  createdAt DateTime @default(now())
+}
