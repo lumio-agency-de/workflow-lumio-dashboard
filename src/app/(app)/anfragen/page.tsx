@@ -29,7 +29,9 @@ export default async function AnfragenPage() {
   const capacity = computeCapacity(calView.data, openOrders);
 
   // Alle Anfragen inkl. verknuepftem Angebot laden
+  // (geloeschte Anfragen bleiben als Tombstone in der DB, werden hier aber ausgeblendet)
   const leads = await prisma.lead.findMany({
+    where: { status: { not: "geloescht" } },
     include: { offer: { include: { items: { orderBy: { position: "asc" } } } } },
     orderBy: { mailDate: "desc" },
   });
