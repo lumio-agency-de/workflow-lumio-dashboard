@@ -43,6 +43,7 @@ export type MailItem = {
 export type DataView<T> = {
   configured: boolean; // sind Google-Zugangsdaten hinterlegt?
   connected: boolean; // ist mindestens ein Google-Konto verbunden?
+  selfConnected: boolean; // ist das eigene Google-Konto des angemeldeten Nutzers verbunden?
   demo: boolean; // sind das Beispiel-Daten?
   data: T;
   // Team-Uebersicht: wer hat sein Google-Konto verbunden (fuer die kombinierte Ansicht)

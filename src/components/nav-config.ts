@@ -6,13 +6,15 @@ import {
   Mail,
   Briefcase,
   FileText,
-  Package,
   Phone,
   ListChecks,
+  MessageSquare,
   Target,
+  Radar,
   type LucideIcon,
 } from "lucide-react";
 
+// Einzelner Navigationspunkt (Link)
 export type NavItem = {
   href: string;
   label: string;
@@ -20,15 +22,40 @@ export type NavItem = {
   exact?: boolean;
 };
 
-export const NAV: NavItem[] = [
+// Ausklappbarer Ordner mit mehreren Unterpunkten
+export type NavGroup = {
+  label: string;
+  icon: LucideIcon;
+  children: NavItem[];
+};
+
+export type NavEntry = NavItem | NavGroup;
+
+// Typwaechter: unterscheidet Ordner von einfachem Link
+export function isNavGroup(entry: NavEntry): entry is NavGroup {
+  return "children" in entry;
+}
+
+export const NAV: NavEntry[] = [
   { href: "/", label: "Übersicht", icon: LayoutDashboard, exact: true },
-  { href: "/anfragen", label: "Anfragen", icon: Inbox },
-  { href: "/leads", label: "Leads", icon: Target },
   { href: "/kalender", label: "Kalender", icon: Calendar },
   { href: "/mails", label: "E-Mails", icon: Mail },
-  { href: "/auftraege", label: "Aufträge", icon: Briefcase },
-  { href: "/angebote", label: "Angebote", icon: FileText },
-  { href: "/pakete", label: "Pakete", icon: Package },
+  { href: "/chat", label: "Chat", icon: MessageSquare },
+  {
+    label: "Vertrieb",
+    icon: Target,
+    children: [
+      { href: "/leads", label: "Leads", icon: Radar },
+      { href: "/anfragen", label: "Anfragen", icon: Inbox },
+      { href: "/angebote", label: "Angebote", icon: FileText },
+      { href: "/auftraege", label: "Aufträge", icon: Briefcase },
+    ],
+  },
   { href: "/telefon", label: "Telefon", icon: Phone },
   { href: "/todos", label: "To-Dos", icon: ListChecks },
 ];
+
+// Flache Liste aller Links (fuer die mobile Leiste, die keine Ordner kennt)
+export const NAV_FLAT: NavItem[] = NAV.flatMap((entry) =>
+  isNavGroup(entry) ? entry.children : [entry]
+);

@@ -25,6 +25,7 @@ import {
   markLeadWon,
   markLeadLost,
   discardLeadOffer,
+  deleteLead,
 } from "./actions";
 
 // Daten, die die Karte vom Server bekommt (bereits aufbereitet)
@@ -116,7 +117,7 @@ export default function LeadCard({
             <CapacityBadge level={capacity.level} label={capacity.label} />
             <span className="text-xs text-muted">{capacity.hint}</span>
           </div>
-          <button onClick={() => run(markLeadLost)} disabled={isPending} className={btnGhost + " ml-auto"}>
+          <button onClick={() => run(deleteLead)} disabled={isPending} className={btnGhost + " ml-auto"}>
             <X className="h-4 w-4" /> Ablehnen
           </button>
         </div>
@@ -237,7 +238,21 @@ export default function LeadCard({
         </p>
       )}
       {lead.status === "verloren" && (
-        <p className="mt-4 text-sm text-muted">Anfrage abgeschlossen (verloren).</p>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <p className="text-sm text-muted">Anfrage abgeschlossen (verloren).</p>
+          <button
+            onClick={() => {
+              if (confirm("Diese abgelehnte Anfrage endgültig aus der Liste entfernen?")) {
+                run(deleteLead);
+              }
+            }}
+            disabled={isPending}
+            className={btnGhost + " ml-auto"}
+          >
+            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            Löschen
+          </button>
+        </div>
       )}
     </div>
   );

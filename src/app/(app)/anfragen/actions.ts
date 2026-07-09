@@ -227,6 +227,22 @@ export async function markLeadLost(formData: FormData) {
   refresh();
 }
 
+// ---------------------------------------------------------------------------
+// Abgelehnte Anfrage entfernen: verschwindet aus der Anfragen-Liste.
+// Bewusst KEIN Hard-Delete: Der Datensatz bleibt als "Tombstone" (Status
+// "geloescht") erhalten, damit die Gmail-Synchronisation (upsert auf mailId in
+// syncLeadsFromMails) die Anfrage nicht beim naechsten Abruf wieder als "neu"
+// anlegt. Die Seite blendet Leads mit Status "geloescht" aus.
+export async function deleteLead(formData: FormData) {
+  await requireSession();
+  const id = String(formData.get("id") ?? "");
+  const lead = await prisma.lead.findUnique({ where: { id } });
+  if (!lead) return;
+
+  await prisma.lead.update({ where: { id }, data: { status: "geloescht" } });
+  refresh();
+}
+
 // Entwurf verwerfen: automatisch erstelltes Angebot loeschen, Anfrage zurueck auf "neu"
 export async function discardLeadOffer(formData: FormData) {
   await requireSession();
