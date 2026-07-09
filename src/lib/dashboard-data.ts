@@ -1,6 +1,8 @@
 // Zentrale Datenschicht fuer Kalender und E-Mails.
-// Kombiniert die Daten ALLER verbundenen Google-Konten (miko/nevio/info) zu
-// einer gemeinsamen Ansicht, damit niemand sich extra als "info" einloggen muss.
+// Kalender: alle verbundenen Konten gemeinsam (fuers Planen).
+// Mails: nur das eigene Postfach + das gemeinsame info@-Postfach (nicht die
+// Mails der anderen Kollegen), aus Datenschutzgruenden.
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { googleConfigured } from "@/lib/env";
 import { getGoogleClientForUser } from "@/lib/google/client";
@@ -85,7 +87,14 @@ export async function getMailView(): Promise<DataView<MailItem[]>> {
 
 async function loadMails(): Promise<DataView<MailItem[]>> {
   const team = await teamAccounts();
-  const accounts = team.map((t) => ({
+
+  // Sichtbarer Ausschnitt: nur das eigene Konto + das gemeinsame info@-Konto
+  const session = await auth();
+  const ownUsername = session?.user?.username;
+  const visibleTeam = team.filter(
+    (t) => t.username === ownUsername || t.username === "info"
+  );
+  const accounts = visibleTeam.map((t) => ({
     userId: t.userId,
     username: t.username,
     name: t.name,
@@ -95,7 +104,7 @@ async function loadMails(): Promise<DataView<MailItem[]>> {
   if (!googleConfigured) {
     return { configured: false, connected: false, demo: true, data: [], accounts };
   }
-  const connectedMembers = team.filter((t) => t.connected);
+  const connectedMembers = visibleTeam.filter((t) => t.connected);
   if (connectedMembers.length === 0) {
     return { configured: true, connected: false, demo: true, data: [], accounts };
   }
