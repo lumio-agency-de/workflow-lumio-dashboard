@@ -27,6 +27,7 @@ export default async function KalenderPage() {
         <GoogleConnectBanner
           configured={view.configured}
           connected={view.connected}
+          selfConnected={view.selfConnected}
           demo={view.demo}
           accounts={view.accounts}
         />

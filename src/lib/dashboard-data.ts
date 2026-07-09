@@ -68,6 +68,9 @@ const teamAccounts = cache(async function teamAccounts() {
 // Kalender-Ansicht: Termine aus allen verbundenen Konten zusammengefuehrt
 export async function getCalendarView(): Promise<DataView<CalEvent[]>> {
   const team = await teamAccounts();
+  const session = await auth();
+  const ownUsername = session?.user?.username;
+  const selfConnected = team.some((t) => t.username === ownUsername && t.connected);
   const accounts = team.map((t) => ({
     userId: t.userId,
     username: t.username,
@@ -76,11 +79,11 @@ export async function getCalendarView(): Promise<DataView<CalEvent[]>> {
   }));
 
   if (!googleConfigured) {
-    return { configured: false, connected: false, demo: true, data: [], accounts };
+    return { configured: false, connected: false, selfConnected, demo: true, data: [], accounts };
   }
   const connectedMembers = team.filter((t) => t.connected);
   if (connectedMembers.length === 0) {
-    return { configured: true, connected: false, demo: true, data: [], accounts };
+    return { configured: true, connected: false, selfConnected, demo: true, data: [], accounts };
   }
 
   const perAccount = await Promise.all(
@@ -105,7 +108,7 @@ export async function getCalendarView(): Promise<DataView<CalEvent[]>> {
     .flat()
     .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
-  return { configured: true, connected: true, demo: false, data, accounts };
+  return { configured: true, connected: true, selfConnected, demo: false, data, accounts };
 }
 
 // E-Mail-Ansicht: Posteingaenge aller verbundenen Konten zusammengefuehrt.
@@ -123,6 +126,7 @@ async function loadMails(): Promise<DataView<MailItem[]>> {
   // Sichtbarer Ausschnitt: nur das eigene Konto + das gemeinsame info@-Konto
   const session = await auth();
   const ownUsername = session?.user?.username;
+  const selfConnected = team.some((t) => t.username === ownUsername && t.connected);
   const visibleTeam = team.filter(
     (t) => t.username === ownUsername || t.username === "info"
   );
@@ -134,11 +138,11 @@ async function loadMails(): Promise<DataView<MailItem[]>> {
   }));
 
   if (!googleConfigured) {
-    return { configured: false, connected: false, demo: true, data: [], accounts };
+    return { configured: false, connected: false, selfConnected, demo: true, data: [], accounts };
   }
   const connectedMembers = visibleTeam.filter((t) => t.connected);
   if (connectedMembers.length === 0) {
-    return { configured: true, connected: false, demo: true, data: [], accounts };
+    return { configured: true, connected: false, selfConnected, demo: true, data: [], accounts };
   }
 
   const perAccount = await Promise.all(
@@ -162,5 +166,5 @@ async function loadMails(): Promise<DataView<MailItem[]>> {
     .flat()
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  return { configured: true, connected: true, demo: false, data, accounts };
+  return { configured: true, connected: true, selfConnected, demo: false, data, accounts };
 }

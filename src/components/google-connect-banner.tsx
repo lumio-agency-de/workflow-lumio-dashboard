@@ -8,15 +8,21 @@ type Account = { userId: string; username: string; name: string; connected: bool
 export default function GoogleConnectBanner({
   configured,
   connected,
+  selfConnected,
   demo,
   accounts,
 }: {
   configured: boolean;
   connected: boolean;
+  selfConnected: boolean;
   demo: boolean;
   accounts?: Account[];
 }) {
-  // Verbunden: Bestaetigung + Uebersicht, wer im Team schon verbunden ist
+  // Verbunden: Bestaetigung + Uebersicht, wer im Team schon verbunden ist.
+  // Wichtig: "connected" heisst nur, dass IRGENDEIN sichtbares Konto (z. B. das
+  // gemeinsame info@-Postfach) verbunden ist. Ist das EIGENE Konto des
+  // angemeldeten Nutzers noch nicht verbunden, muss er trotzdem einen
+  // "Google verbinden"-Button bekommen – sonst kann er sich nie verbinden.
   if (connected) {
     const missing = accounts?.filter((a) => !a.connected) ?? [];
     return (
@@ -26,14 +32,24 @@ export default function GoogleConnectBanner({
             <CheckCircle2 className="h-4 w-4 text-accent" />
             Google-Workspace verbunden – gemeinsame Ansicht aller verbundenen Postfächer.
           </div>
-          <form action={disconnectGoogle}>
-            <button
-              type="submit"
-              className="text-xs font-medium text-muted transition-colors hover:text-ink"
+          {selfConnected ? (
+            <form action={disconnectGoogle}>
+              <button
+                type="submit"
+                className="text-xs font-medium text-muted transition-colors hover:text-ink"
+              >
+                Mein Konto trennen
+              </button>
+            </form>
+          ) : (
+            <a
+              href="/api/google/connect"
+              className="glow-accent flex shrink-0 items-center gap-2 rounded-xl bg-accent px-3 py-1.5 text-xs font-semibold text-[#06121e] transition hover:bg-accent-2"
             >
-              Mein Konto trennen
-            </button>
-          </form>
+              <Link2 className="h-3.5 w-3.5" />
+              Mein Konto verbinden
+            </a>
+          )}
         </div>
         {accounts && accounts.length > 0 && (
           <div className="flex flex-wrap items-center gap-3 text-xs text-muted">

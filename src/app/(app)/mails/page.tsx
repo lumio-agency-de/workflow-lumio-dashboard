@@ -24,6 +24,7 @@ export default async function MailsPage() {
         <GoogleConnectBanner
           configured={view.configured}
           connected={view.connected}
+          selfConnected={view.selfConnected}
           demo={view.demo}
           accounts={view.accounts}
         />
