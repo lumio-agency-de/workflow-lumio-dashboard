@@ -1,4 +1,5 @@
 // E-Mail-Seite: Posteingang mit Kategorien und KI-Antwortvorschlaegen.
+import { auth } from "@/auth";
 import { getMailView } from "@/lib/dashboard-data";
 import { PageHeader } from "@/components/panel";
 import { Reveal } from "@/components/reveal";
@@ -8,8 +9,10 @@ import MailInbox from "@/components/mail-inbox";
 export const dynamic = "force-dynamic";
 
 export default async function MailsPage() {
-  const view = await getMailView();
+  const [view, session] = await Promise.all([getMailView(), auth()]);
   const unread = view.data.filter((m) => m.unread).length;
+  const ownUsername = session?.user?.username ?? "";
+  const userName = session?.user?.name ?? "";
 
   return (
     <div>
@@ -31,7 +34,13 @@ export default async function MailsPage() {
       </Reveal>
 
       <Reveal delay={0.1}>
-        <MailInbox mails={view.data} connected={view.connected} />
+        <MailInbox
+          mails={view.data}
+          connected={view.connected}
+          ownUsername={ownUsername}
+          userName={userName}
+          accounts={view.accounts}
+        />
       </Reveal>
     </div>
   );
