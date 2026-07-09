@@ -80,6 +80,15 @@ model AppText {
   updatedAt DateTime @updatedAt
 }
 
+// Gemeinsame To-Do-Liste (fuer alle Dashboard-Nutzer sichtbar)
+model Todo {
+  id        String   @id @default(cuid())
+  text      String
+  done      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // Offener Auftrag / Projekt (voll funktionsfaehig, in der Datenbank gespeichert)
 model Order {
   id           String    @id @default(cuid())
