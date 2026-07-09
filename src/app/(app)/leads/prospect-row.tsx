@@ -10,9 +10,11 @@ import {
   Phone,
   Globe,
   ChevronDown,
+  ClipboardList,
 } from "lucide-react";
 import { PROSPECT_STATUS, statusInfo, scoreClass } from "@/lib/akquise";
 import { updateProspect } from "./actions";
+import { addFromProspect } from "@/app/(app)/kontakt-vorbereitung/actions";
 
 type P = {
   id: string;
@@ -28,10 +30,12 @@ type P = {
   ansprechpartner: string;
   reaktion: string;
   notiz: string;
+  hatVorbereitung?: boolean;
 };
 
 export default function ProspectRow({ p }: { p: P }) {
   const [, startTransition] = useTransition();
+  const [prepPending, startPrepTransition] = useTransition();
   const [offen, setOffen] = useState(false);
   const kontaktiert = p.status !== "neu";
   const info = statusInfo(p.status);
@@ -42,6 +46,15 @@ export default function ProspectRow({ p }: { p: P }) {
     for (const [k, v] of Object.entries(felder)) fd.set(k, v);
     startTransition(async () => {
       await updateProspect(fd);
+    });
+  }
+
+  // Diesen Lead in die Kontakt-Vorbereitung uebernehmen.
+  function inVorbereitung() {
+    const fd = new FormData();
+    fd.set("prospectId", p.id);
+    startPrepTransition(async () => {
+      await addFromProspect(fd);
     });
   }
 
@@ -113,6 +126,22 @@ export default function ProspectRow({ p }: { p: P }) {
             </option>
           ))}
         </select>
+
+        {/* Kontakt-Vorbereitung */}
+        {p.hatVorbereitung ? (
+          <span className="hidden shrink-0 items-center gap-1 text-xs text-muted sm:inline-flex">
+            <ClipboardList className="h-3 w-3" /> ✓ in Vorbereitung
+          </span>
+        ) : (
+          <button
+            onClick={inVorbereitung}
+            disabled={prepPending}
+            title="In Kontakt-Vorbereitung übernehmen"
+            className="hidden shrink-0 items-center gap-1 rounded-lg border border-line bg-white/5 px-2 py-1 text-xs text-muted transition-colors hover:border-accent/40 hover:text-accent disabled:opacity-50 sm:inline-flex"
+          >
+            <ClipboardList className="h-3 w-3" /> → Vorbereitung
+          </button>
+        )}
 
         {/* Aufklappen */}
         <button
