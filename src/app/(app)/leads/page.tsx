@@ -44,6 +44,8 @@ export default async function LeadsPage({
         },
         orderBy: [{ leadScore: "desc" }, { name: "asc" }],
         take: 500,
+        // Mitladen, ob schon eine Kontakt-Vorbereitung existiert (fuer den Button).
+        include: { contactPrep: { select: { id: true } } },
       })
     : [];
 
@@ -166,6 +168,7 @@ export default async function LeadsPage({
                         ansprechpartner: p.ansprechpartner,
                         reaktion: p.reaktion,
                         notiz: p.notiz,
+                        hatVorbereitung: !!p.contactPrep,
                       }}
                     />
                   ))}

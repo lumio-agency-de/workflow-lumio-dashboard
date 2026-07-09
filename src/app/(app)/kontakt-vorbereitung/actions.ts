@@ -35,6 +35,8 @@ export async function addFromProspect(formData: FormData) {
     },
   });
   revalidatePath("/kontakt-vorbereitung");
+  // Damit der Button in der Leads-Liste sofort den neuen Status zeigt.
+  revalidatePath("/leads");
 }
 
 // Eine Firma manuell anlegen (ohne Prospect, z. B. Empfehlung).

@@ -9,7 +9,11 @@ import {
   ArrowRight,
   MapPin,
   ListChecks,
+  Target,
+  Flame,
+  ClipboardList,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getCalendarView, getMailView } from "@/lib/dashboard-data";
@@ -42,6 +46,18 @@ export default async function DashboardHome() {
 
   // Anfragen-Signale NACH dem Mail-Laden abfragen (dabei entstehen neue Leads)
   const leadSignals = await getLeadSignals();
+
+  // Akquise-Kennzahlen parallel laden. Die Akquise-Tabellen sind evtl. noch
+  // nicht migriert, daher jede Abfrage einzeln absichern (Fehler -> 0).
+  const [offeneLeads, heisseLeads, inVorbereitung] = await Promise.all([
+    prisma.prospect
+      .count({ where: { status: { in: ["neu", "kontaktiert", "interesse"] } } })
+      .catch(() => 0),
+    prisma.prospect.count({ where: { website: "" } }).catch(() => 0),
+    prisma.contactPrep
+      .count({ where: { status: { not: "kontaktiert" } } })
+      .catch(() => 0),
+  ]);
 
   // Kennzahlen berechnen
   const eventsToday = calView.data.filter((e) => isToday(e.start));
@@ -119,6 +135,39 @@ export default async function DashboardHome() {
             icon={FileText}
             hint={`${openOffers.length} offen`}
           />
+        </div>
+      </Reveal>
+
+      {/* Akquise-Kennzahlen */}
+      <Reveal delay={0.07}>
+        <div className="mt-8">
+          <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-semibold">
+            <Target className="h-[18px] w-[18px] text-accent" />
+            Akquise
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <AkquiseStat
+              href="/leads"
+              label="Offene Leads"
+              value={offeneLeads}
+              icon={Target}
+              hint="neu · kontaktiert · Interesse"
+            />
+            <AkquiseStat
+              href="/leads"
+              label="Heiße Leads (ohne Website)"
+              value={heisseLeads}
+              icon={Flame}
+              hint="beste Ansatzpunkte"
+            />
+            <AkquiseStat
+              href="/kontakt-vorbereitung"
+              label="In Vorbereitung"
+              value={inVorbereitung}
+              icon={ClipboardList}
+              hint="noch nicht kontaktiert"
+            />
+          </div>
         </div>
       </Reveal>
 
@@ -284,6 +333,36 @@ function WidgetHead({
         Alle <ArrowRight className="h-3 w-3" />
       </Link>
     </div>
+  );
+}
+
+// Verlinkte Kennzahl-Kachel fuer die Akquise (StatCard-Optik, klickbar)
+function AkquiseStat({
+  href,
+  label,
+  value,
+  icon: Icon,
+  hint,
+}: {
+  href: string;
+  label: string;
+  value: string | number;
+  icon: LucideIcon;
+  hint?: string;
+}) {
+  return (
+    <Link href={href} className="group block">
+      <Panel className="p-5 transition-colors group-hover:border-accent/30">
+        <div className="flex items-start justify-between">
+          <span className="text-sm text-muted">{label}</span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-accent/10 text-accent">
+            <Icon className="h-[18px] w-[18px]" />
+          </span>
+        </div>
+        <div className="mt-3 font-display text-3xl font-bold">{value}</div>
+        {hint && <div className="mt-1 text-xs text-muted">{hint}</div>}
+      </Panel>
+    </Link>
   );
 }
 
