@@ -37,6 +37,7 @@ export async function createPackage(formData: FormData) {
   });
 
   revalidatePath("/pakete"); // Liste neu laden
+  revalidatePath("/angebote"); // Pakete-Tab in den Angeboten aktualisieren
 }
 
 // Bestehendes Paket bearbeiten
@@ -56,6 +57,7 @@ export async function updatePackage(formData: FormData) {
   });
 
   revalidatePath("/pakete");
+  revalidatePath("/angebote");
 }
 
 // Paket loeschen (bereits erstellte Angebote bleiben unveraendert,
@@ -67,4 +69,5 @@ export async function deletePackage(formData: FormData) {
 
   await prisma.package.delete({ where: { id } });
   revalidatePath("/pakete");
+  revalidatePath("/angebote");
 }
