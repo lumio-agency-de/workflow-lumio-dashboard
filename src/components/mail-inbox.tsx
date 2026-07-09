@@ -6,6 +6,7 @@ import { Sparkles, Copy, Check, ExternalLink, Loader2 } from "lucide-react";
 import type { MailItem, MailCategory } from "@/lib/types";
 import { CategoryBadge } from "@/components/badges";
 import { formatDayShort } from "@/lib/format";
+import { colorForUsername } from "@/lib/team";
 
 const CATEGORIES: MailCategory[] = [
   "Anfrage",
@@ -115,13 +116,22 @@ export default function MailInbox({
                   }
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span
-                      className={
-                        "truncate text-sm " +
-                        (m.unread ? "font-semibold text-ink" : "text-muted")
-                      }
-                    >
-                      {m.fromName}
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      {m.ownerUsername && (
+                        <span
+                          className="h-2 w-2 shrink-0 rounded-full"
+                          style={{ backgroundColor: colorForUsername(m.ownerUsername) }}
+                          title={m.ownerName ?? m.ownerUsername}
+                        />
+                      )}
+                      <span
+                        className={
+                          "truncate text-sm " +
+                          (m.unread ? "font-semibold text-ink" : "text-muted")
+                        }
+                      >
+                        {m.fromName}
+                      </span>
                     </span>
                     <span className="shrink-0 text-xs text-muted">
                       {formatDayShort(m.date)}
@@ -156,6 +166,17 @@ export default function MailInbox({
                   <p className="mt-1 text-sm text-muted">
                     {selected.fromName} · {selected.fromEmail}
                   </p>
+                  {selected.ownerEmail && (
+                    <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
+                      <span
+                        className="h-2 w-2 rounded-full"
+                        style={{
+                          backgroundColor: colorForUsername(selected.ownerUsername ?? ""),
+                        }}
+                      />
+                      eingegangen bei {selected.ownerEmail}
+                    </p>
+                  )}
                 </div>
                 <CategoryBadge category={selected.category} />
               </div>

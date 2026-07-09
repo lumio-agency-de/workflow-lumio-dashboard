@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { CalEvent } from "@/lib/types";
+import { colorForUsername } from "@/lib/team";
 
 const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 const MONTHS = [
@@ -116,15 +117,22 @@ export default function CalendarMonth({ events }: { events: CalEvent[] }) {
                   {d.getDate()}
                 </div>
                 <div className="mt-1 flex flex-col gap-1">
-                  {dayEvents.slice(0, 3).map((e) => (
-                    <div
-                      key={e.id}
-                      title={e.title}
-                      className="truncate rounded bg-accent/15 px-1 py-0.5 text-[10px] text-accent-2"
-                    >
-                      {e.title}
-                    </div>
-                  ))}
+                  {dayEvents.slice(0, 3).map((e) => {
+                    const color = e.ownerUsername ? colorForUsername(e.ownerUsername) : undefined;
+                    return (
+                      <div
+                        key={e.id}
+                        title={e.ownerName ? `${e.title} (${e.ownerName})` : e.title}
+                        className={
+                          "truncate rounded px-1 py-0.5 text-[10px] " +
+                          (color ? "" : "bg-accent/15 text-accent-2")
+                        }
+                        style={color ? { backgroundColor: `${color}26`, color } : undefined}
+                      >
+                        {e.title}
+                      </div>
+                    );
+                  })}
                   {dayEvents.length > 3 && (
                     <div className="text-[10px] text-muted">+{dayEvents.length - 3} mehr</div>
                   )}

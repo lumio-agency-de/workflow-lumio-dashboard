@@ -1,32 +1,63 @@
 // Hinweisleiste zum Google-Verbindungsstatus (verbinden / verbunden / nicht eingerichtet).
 import { Link2, CheckCircle2, Info } from "lucide-react";
 import { disconnectGoogle } from "@/app/(app)/google-actions";
+import { colorForUsername } from "@/lib/team";
+
+type Account = { userId: string; username: string; name: string; connected: boolean };
 
 export default function GoogleConnectBanner({
   configured,
   connected,
   demo,
+  accounts,
 }: {
   configured: boolean;
   connected: boolean;
   demo: boolean;
+  accounts?: Account[];
 }) {
-  // Verbunden: schlichte Bestaetigung + Trennen-Option
+  // Verbunden: Bestaetigung + Uebersicht, wer im Team schon verbunden ist
   if (connected) {
+    const missing = accounts?.filter((a) => !a.connected) ?? [];
     return (
-      <div className="glass mb-6 flex items-center justify-between gap-3 rounded-2xl px-4 py-3">
-        <div className="flex items-center gap-2 text-sm text-muted">
-          <CheckCircle2 className="h-4 w-4 text-accent" />
-          Google-Workspace verbunden – es werden Live-Daten angezeigt.
+      <div className="glass mb-6 flex flex-col gap-2 rounded-2xl px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-sm text-muted">
+            <CheckCircle2 className="h-4 w-4 text-accent" />
+            Google-Workspace verbunden – gemeinsame Ansicht aller verbundenen Postfächer.
+          </div>
+          <form action={disconnectGoogle}>
+            <button
+              type="submit"
+              className="text-xs font-medium text-muted transition-colors hover:text-ink"
+            >
+              Mein Konto trennen
+            </button>
+          </form>
         </div>
-        <form action={disconnectGoogle}>
-          <button
-            type="submit"
-            className="text-xs font-medium text-muted transition-colors hover:text-ink"
-          >
-            Trennen
-          </button>
-        </form>
+        {accounts && accounts.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
+            {accounts.map((a) => (
+              <span key={a.userId} className="flex items-center gap-1.5">
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{
+                    backgroundColor: a.connected ? colorForUsername(a.username) : "transparent",
+                    border: a.connected ? "none" : "1px solid var(--color-line)",
+                  }}
+                />
+                {a.name}
+                {!a.connected && " (nicht verbunden)"}
+              </span>
+            ))}
+          </div>
+        )}
+        {missing.length > 0 && (
+          <div className="text-xs text-muted">
+            Fehlt noch: {missing.map((m) => m.name).join(", ")} — jeweils im eigenen
+            Nutzer einloggen und „Google verbinden" klicken.
+          </div>
+        )}
       </div>
     );
   }

@@ -43,20 +43,22 @@ model GoogleAccount {
 // Anfrage (Lead) – wird automatisch aus E-Mails der Kategorie "Anfrage" angelegt
 // und durchlaeuft die Pipeline: neu -> angebot_erstellt -> angebot_gesendet -> gewonnen/verloren
 model Lead {
-  id         String    @id @default(cuid())
-  mailId     String    @unique              // Gmail-Nachrichten-ID (verhindert Duplikate)
-  fromName   String                          // Absendername
-  fromEmail  String                          // Absenderadresse
-  subject    String                          // Betreff der Anfrage
-  snippet    String    @default("")          // Textauszug der Mail
-  mailDate   DateTime                        // Datum der Mail
-  status     String    @default("neu")       // neu | angebot_erstellt | angebot_gesendet | gewonnen | verloren
-  emailDraft String    @default("")          // gespeicherter Mail-Vorschlag fuer den Versand
-  sentAt     DateTime?                        // wann das Angebot verschickt wurde
-  offerId    String?   @unique               // verknuepftes (automatisch erstelltes) Angebot
-  offer      Offer?    @relation(fields: [offerId], references: [id], onDelete: SetNull)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id            String    @id @default(cuid())
+  mailId        String    @unique              // Gmail-Nachrichten-ID (verhindert Duplikate)
+  fromName      String                          // Absendername
+  fromEmail     String                          // Absenderadresse
+  subject       String                          // Betreff der Anfrage
+  snippet       String    @default("")          // Textauszug der Mail
+  mailDate      DateTime                        // Datum der Mail
+  status        String    @default("neu")       // neu | angebot_erstellt | angebot_gesendet | gewonnen | verloren
+  emailDraft    String    @default("")          // gespeicherter Mail-Vorschlag fuer den Versand
+  sentAt        DateTime?                        // wann das Angebot verschickt wurde
+  offerId       String?   @unique               // verknuepftes (automatisch erstelltes) Angebot
+  offer         Offer?    @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  mailboxUserId String?                          // Dashboard-Nutzer, ueber dessen Google-Konto diese Mail einging
+  mailboxEmail  String    @default("")           // die empfangende Adresse (z. B. info@lumio-agency.de), fuer Anzeige + Antwortversand
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 // Notiz zu einem durchgefuehrten Telefonat (Cold Call)

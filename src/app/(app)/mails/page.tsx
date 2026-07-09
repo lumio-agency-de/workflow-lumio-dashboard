@@ -25,6 +25,7 @@ export default async function MailsPage() {
           configured={view.configured}
           connected={view.connected}
           demo={view.demo}
+          accounts={view.accounts}
         />
       </Reveal>
 

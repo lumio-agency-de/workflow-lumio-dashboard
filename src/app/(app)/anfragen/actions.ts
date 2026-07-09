@@ -37,9 +37,11 @@ export async function acceptLead(formData: FormData) {
 
   // Anfrage-Text: wenn Gmail verbunden ist, den Volltext der Mail laden,
   // sonst reichen Betreff + Textauszug
+  // Wichtig: ueber das Postfach-Konto lesen, in dem die Mail einging (nicht
+  // zwingend das des gerade eingeloggten Nutzers, da alle Postfaecher gemeinsam angezeigt werden)
   let mailText = `${lead.subject}\n${lead.snippet}`;
   try {
-    const client = await getGoogleClientForUser(session.user.id);
+    const client = await getGoogleClientForUser(lead.mailboxUserId ?? session.user.id);
     if (client) {
       const full = await getMessageText(client, lead.mailId);
       if (full.body) mailText = `${full.subject}\n${full.body.slice(0, 4000)}`;
@@ -126,7 +128,9 @@ export async function sendLeadMail(formData: FormData) {
   });
   if (!lead?.offer || !draft) return;
 
-  const client = await getGoogleClientForUser(session.user.id);
+  // Ueber das urspruengliche Postfach-Konto versenden, damit die Antwort von
+  // derselben Adresse kommt, an die die Anfrage ging
+  const client = await getGoogleClientForUser(lead.mailboxUserId ?? session.user.id);
   if (!client) throw new Error("Kein Google-Konto verbunden.");
 
   // Angebots-PDF erzeugen und anhaengen
