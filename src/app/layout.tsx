@@ -20,6 +20,8 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Lumio Dashboard",
   description: "Internes Unternehmens-Dashboard von Lumio.",
+  // Internes Tool: nicht von Suchmaschinen indexieren lassen.
+  robots: { index: false, follow: false },
 };
 
 // Wurzel-Layout der gesamten App
