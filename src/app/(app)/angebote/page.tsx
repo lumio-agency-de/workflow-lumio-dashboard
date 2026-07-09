@@ -7,6 +7,8 @@ import { PageHeader } from "@/components/panel";
 import { Reveal } from "@/components/reveal";
 import StatusSelect from "./status-select";
 import DeleteOfferButton from "./delete-offer-button";
+import AngeboteTabs from "./angebote-tabs";
+import { PackageManager } from "@/components/package-manager";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +34,9 @@ export default async function AngebotePage() {
         />
       </Reveal>
 
+      <AngeboteTabs
+        angebote={
+          <>
       {offers.length === 0 ? (
         <Reveal delay={0.05}>
           <div className="glass rounded-2xl p-10 text-center">
@@ -91,6 +96,10 @@ export default async function AngebotePage() {
           </div>
         </Reveal>
       )}
+          </>
+        }
+        pakete={<PackageManager />}
+      />
     </div>
   );
 }
