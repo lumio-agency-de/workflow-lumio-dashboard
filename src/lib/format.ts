@@ -24,6 +24,12 @@ export function toDateInputValue(date: Date | string): string {
   return d.toISOString().slice(0, 10);
 }
 
+// Uhrzeit als HH:MM (lokale Zeit) fuer <input type="time"> aufbereiten
+export function toTimeInputValue(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 // Uhrzeit ausgeben, z. B. "10:00"
 export function formatTime(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;

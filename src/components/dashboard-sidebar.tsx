@@ -1,6 +1,7 @@
 "use client";
 
 // Animierte Seitenleiste des Dashboards.
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
@@ -23,9 +24,14 @@ export default function DashboardSidebar({
     <aside className="glass sticky top-0 flex h-screen w-64 shrink-0 flex-col gap-2 p-4 max-lg:hidden">
       {/* Logo */}
       <Link href="/" className="mb-4 px-2 py-2">
-        <span className="font-display text-2xl font-bold tracking-tight">
-          Lumio<span className="text-accent">.</span>
-        </span>
+        <Image
+          src="/logo-lockup-light.png"
+          alt="Lumio"
+          width={140}
+          height={53}
+          priority
+          className="h-auto w-[140px]"
+        />
         <span className="mt-0.5 block text-xs text-muted">Dashboard</span>
       </Link>
 

@@ -44,10 +44,15 @@ npm run db:seed            # Login-Konten + Beispiel-Pakete
 
 ### Login
 
-| Benutzer | Passwort           |
-| -------- | ------------------ |
-| `miko`   | `lumio-miko-2026`  |
-| `nevio`  | `lumio-nevio-2026` |
+| Benutzer | Passwort           | Google-Konto              |
+| -------- | ------------------ | -------------------------- |
+| `miko`   | `lumio-miko-2026`  | miko@lumio-agency.de       |
+| `nevio`  | `lumio-nevio-2026` | nevio@lumio-agency.de      |
+| `info`   | `lumio-info-2026`  | info@lumio-agency.de       |
+
+Jeder Benutzer verbindet unter „E-Mails"/„Kalender" sein **eigenes** Google-Konto
+(„Google verbinden"). Dadurch sieht z. B. `miko` sein persönliches Postfach,
+`info` das gemeinsame Team-Postfach.
 
 > 🔐 Start-Passwörter bitte ändern (siehe unten „Passwörter“).
 
@@ -94,9 +99,18 @@ vorher löschen (z. B. mit `npm run db:studio`).
 
 ## Deployment (später)
 
-- **Hostinger Node.js-Hosting:** SQLite-Datei bleibt liegen; `npm run build` +
-  `npm run start`, eigene Subdomain (z. B. `tool.lumio.de`).
-- **Vercel:** funktioniert, aber SQLite ist dort nicht dauerhaft speicherbar →
-  für Produktion gehostete DB (z. B. Postgres) nutzen.
+> ⚠️ Das normale IONOS-Webhosting-Paket (worüber die Lumio-Website läuft) und
+> auch **IONOS Deploy Now** unterstützen **kein** Next.js-Server-Side-Rendering
+> (nur statischen Export) – dieses Dashboard braucht aber einen dauerhaft
+> laufenden Node.js-Server + Datenbank. Es kann daher **nicht** über den
+> gleichen Weg wie die Website gehostet werden.
+
+- **IONOS VPS / Cloud Server** (separates Abo mit SSH-Root-Zugriff): SQLite-
+  Datei bleibt liegen; Node.js selbst installieren, `npm run build` + `npm run
+  start` dauerhaft laufen lassen (z. B. via `pm2`), eigene Subdomain (z. B.
+  `tool.lumio.de`).
+- **Vercel:** automatisches Deployment bei jedem GitHub-Push, aber SQLite ist
+  dort nicht dauerhaft speicherbar → für Produktion gehostete DB nutzen (z. B.
+  Postgres bei Neon/Supabase).
 - In Produktion: neues `AUTH_SECRET`, Produktions-Redirect-URI bei Google,
   echte Keys in den Umgebungsvariablen.

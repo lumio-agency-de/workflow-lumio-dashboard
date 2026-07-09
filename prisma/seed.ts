@@ -2,13 +2,11 @@
 // Ausfuehren mit:  npm run db:seed
 import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 
 // Eigene DB-Verbindung fuer das Skript
-const adapter = new PrismaBetterSqlite3({
-  url: process.env.DATABASE_URL ?? "file:./dev.db",
-});
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
@@ -17,6 +15,7 @@ async function main() {
   // sonst werden die Standardwerte unten benutzt. NACH dem ersten Login aendern!
   const mikoPassword = process.env.SEED_MIKO_PASSWORD ?? "lumio-miko-2026";
   const nevioPassword = process.env.SEED_NEVIO_PASSWORD ?? "lumio-nevio-2026";
+  const infoPassword = process.env.SEED_INFO_PASSWORD ?? "lumio-info-2026";
 
   // upsert = anlegen falls nicht vorhanden, sonst nichts ueberschreiben
   await prisma.user.upsert({
@@ -36,6 +35,17 @@ async function main() {
       username: "nevio",
       name: "Nevio Liebig",
       passwordHash: await bcrypt.hash(nevioPassword, 10),
+    },
+  });
+
+  // Gemeinsamer Zugang fuers Team-Postfach (info@lumio-agency.de)
+  await prisma.user.upsert({
+    where: { username: "info" },
+    update: {},
+    create: {
+      username: "info",
+      name: "Info (Team-Postfach)",
+      passwordHash: await bcrypt.hash(infoPassword, 10),
     },
   });
 

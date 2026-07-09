@@ -1,11 +1,11 @@
-// Kalender-Seite: Monatsansicht + anstehende Termine (+ Anlegen, wenn verbunden).
-import { CalendarClock, MapPin, Plus } from "lucide-react";
+// Kalender-Seite: Monatsansicht + anstehende Termine (+ Anlegen/Bearbeiten/Loeschen, wenn verbunden).
+import { Plus } from "lucide-react";
 import { getCalendarView } from "@/lib/dashboard-data";
-import { formatTime, formatDayShort } from "@/lib/format";
 import { Panel, PageHeader } from "@/components/panel";
 import { Reveal } from "@/components/reveal";
 import GoogleConnectBanner from "@/components/google-connect-banner";
 import CalendarMonth from "@/components/calendar-month";
+import UpcomingEvents from "@/components/upcoming-events";
 import { createEvent } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -38,39 +38,9 @@ export default async function KalenderPage() {
 
         {/* Seitenspalte */}
         <div className="flex flex-col gap-6">
-          {/* Anstehende Termine */}
+          {/* Anstehende Termine (bearbeitbar, wenn Google verbunden) */}
           <Reveal delay={0.15}>
-            <Panel className="p-5">
-              <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-semibold">
-                <CalendarClock className="h-[18px] w-[18px] text-accent" />
-                Anstehend
-              </h2>
-              <ul className="flex flex-col gap-3">
-                {view.data.slice(0, 6).map((e) => (
-                  <li key={e.id} className="flex gap-3">
-                    <div className="flex w-14 shrink-0 flex-col items-center rounded-lg border border-line bg-white/5 py-1">
-                      <span className="text-[10px] uppercase text-muted">
-                        {formatDayShort(e.start).split(",")[0]}
-                      </span>
-                      <span className="text-sm font-semibold">
-                        {e.allDay ? "ganzt." : formatTime(e.start)}
-                      </span>
-                    </div>
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium">{e.title}</div>
-                      {e.location && (
-                        <div className="flex items-center gap-1 text-xs text-muted">
-                          <MapPin className="h-3 w-3" /> {e.location}
-                        </div>
-                      )}
-                    </div>
-                  </li>
-                ))}
-                {view.data.length === 0 && (
-                  <li className="text-sm text-muted">Keine anstehenden Termine.</li>
-                )}
-              </ul>
-            </Panel>
+            <UpcomingEvents events={view.data} editable={view.connected} />
           </Reveal>
 
           {/* Termin hinzufuegen (nur wenn Google verbunden) */}
@@ -94,6 +64,7 @@ export default async function KalenderPage() {
                       <input name="endTime" type="time" defaultValue="10:00" className={inputClass} />
                     </label>
                   </div>
+                  <input name="location" placeholder="Ort (optional)" className={inputClass} />
                   <button
                     type="submit"
                     className="glow-accent rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-[#06121e] transition hover:bg-accent-2"

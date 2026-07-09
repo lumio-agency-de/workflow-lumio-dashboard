@@ -38,7 +38,7 @@ export async function listUpcomingEvents(
 // Einen neuen Termin anlegen
 export async function createCalendarEvent(
   client: OAuthClient,
-  input: { title: string; start: string; end: string; description?: string }
+  input: { title: string; start: string; end: string; location?: string; description?: string }
 ) {
   const cal = google.calendar({ version: "v3", auth: client });
   await cal.events.insert({
@@ -46,8 +46,35 @@ export async function createCalendarEvent(
     requestBody: {
       summary: input.title,
       description: input.description,
+      location: input.location,
       start: { dateTime: new Date(input.start).toISOString() },
       end: { dateTime: new Date(input.end).toISOString() },
     },
   });
+}
+
+// Einen bestehenden Termin bearbeiten
+export async function updateCalendarEvent(
+  client: OAuthClient,
+  eventId: string,
+  input: { title: string; start: string; end: string; location?: string; description?: string }
+) {
+  const cal = google.calendar({ version: "v3", auth: client });
+  await cal.events.patch({
+    calendarId: "primary",
+    eventId,
+    requestBody: {
+      summary: input.title,
+      description: input.description,
+      location: input.location,
+      start: { dateTime: new Date(input.start).toISOString() },
+      end: { dateTime: new Date(input.end).toISOString() },
+    },
+  });
+}
+
+// Einen Termin loeschen
+export async function deleteCalendarEvent(client: OAuthClient, eventId: string) {
+  const cal = google.calendar({ version: "v3", auth: client });
+  await cal.events.delete({ calendarId: "primary", eventId });
 }
