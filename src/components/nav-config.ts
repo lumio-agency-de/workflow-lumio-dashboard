@@ -8,6 +8,7 @@ import {
   FileText,
   Package,
   Phone,
+  ListChecks,
   type LucideIcon,
 } from "lucide-react";
 
@@ -27,4 +28,5 @@ export const NAV: NavItem[] = [
   { href: "/angebote", label: "Angebote", icon: FileText },
   { href: "/pakete", label: "Pakete", icon: Package },
   { href: "/telefon", label: "Telefon", icon: Phone },
+  { href: "/todos", label: "To-Dos", icon: ListChecks },
 ];
