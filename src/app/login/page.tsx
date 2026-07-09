@@ -1,4 +1,5 @@
 // Login-Seite. Bereits eingeloggte Nutzer werden direkt weitergeleitet.
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import LoginForm from "./login-form";
@@ -13,9 +14,14 @@ export default async function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Marken-Kopf mit dezenter Akzentlinie */}
         <div className="mb-8 text-center">
-          <h1 className="font-display text-4xl font-bold tracking-tight">
-            Lumio<span className="text-accent">.</span>
-          </h1>
+          <Image
+            src="/logo-lockup-light.png"
+            alt="Lumio"
+            width={200}
+            height={76}
+            priority
+            className="mx-auto h-auto w-[200px]"
+          />
           <p className="mt-1 text-sm text-muted">Internes Dashboard</p>
           <div className="glow-accent mx-auto mt-4 h-0.5 w-16 rounded-full bg-accent" />
         </div>

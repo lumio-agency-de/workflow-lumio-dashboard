@@ -1,5 +1,5 @@
 // Prisma-Schema: beschreibt alle Datenbank-Tabellen des Angebots-Tools.
-// Datenbank ist SQLite (eine einzelne Datei dev.db) – ideal fuer 2 Nutzer.
+// Datenbank ist Postgres (gehostet bei Supabase).
 
 // Generator: erzeugt den Prisma-Client (Code zum Datenbankzugriff) nach src/generated/prisma
 generator client {
@@ -7,9 +7,11 @@ generator client {
   output   = "../src/generated/prisma"
 }
 
-// Datenquelle: SQLite. Die Verbindungs-URL steht in prisma.config.ts / .env (DATABASE_URL)
+// Datenquelle: Postgres (Supabase). Die Verbindungs-URL fuers CLI (migrate/db push)
+// steht in prisma.config.ts; die App verbindet sich zur Laufzeit ueber einen eigenen
+// Adapter (src/lib/prisma.ts) mit DATABASE_URL (gepoolt).
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 // Benutzerkonto fuer den Login (nur Miko und Nevio, keine offene Registrierung)

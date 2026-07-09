@@ -8,7 +8,10 @@ export default defineConfig({
   migrations: {
     path: "prisma/migrations",
   },
+  // Fuers CLI (migrate/db push) die DIREKTE Verbindung nutzen (ohne Pooler) –
+  // noetig fuer DDL + die temporaere Shadow-Datenbank. Die App selbst nutzt
+  // zur Laufzeit die gepoolte DATABASE_URL ueber einen eigenen Adapter.
   datasource: {
-    url: process.env["DATABASE_URL"],
+    url: process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"],
   },
 });
