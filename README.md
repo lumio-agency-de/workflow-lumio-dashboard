@@ -44,17 +44,13 @@ npm run db:seed            # Login-Konten + Beispiel-Pakete
 
 ### Login
 
-| Benutzer | Passwort           | Google-Konto              |
-| -------- | ------------------ | -------------------------- |
-| `miko`   | `lumio-miko-2026`  | miko@lumio-agency.de       |
-| `nevio`  | `lumio-nevio-2026` | nevio@lumio-agency.de      |
-| `info`   | `lumio-info-2026`  | info@lumio-agency.de       |
+Es gibt drei Konten: `miko`, `nevio`, `info`. Die Start-Passwörter werden beim
+Seed über Umgebungsvariablen gesetzt (siehe unten „Passwörter") — **nicht** im
+Code oder in diesem README hinterlegen.
 
 Jeder Benutzer verbindet unter „E-Mails"/„Kalender" sein **eigenes** Google-Konto
 („Google verbinden"). Dadurch sieht z. B. `miko` sein persönliches Postfach,
-`info` das gemeinsame Team-Postfach.
-
-> 🔐 Start-Passwörter bitte ändern (siehe unten „Passwörter“).
+`info` das gemeinsame Team-Postfach (info@lumio-agency.de).
 
 ### Starten
 
