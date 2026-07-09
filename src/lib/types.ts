@@ -8,6 +8,10 @@ export type CalEvent = {
   end: string; // ISO-Zeitstempel
   allDay: boolean;
   location?: string;
+  // Wessen verbundenes Google-Konto dieser Termin gehoert (fuer die kombinierte Ansicht)
+  ownerUserId?: string;
+  ownerUsername?: string;
+  ownerName?: string;
 };
 
 // Moegliche E-Mail-Kategorien (fuer die Sortierung)
@@ -28,12 +32,19 @@ export type MailItem = {
   date: string; // ISO-Zeitstempel
   unread: boolean;
   category: MailCategory;
+  // Ueber wessen verbundenes Google-Konto diese Mail einging (fuer die kombinierte Ansicht)
+  ownerUserId?: string;
+  ownerUsername?: string;
+  ownerName?: string;
+  ownerEmail?: string;
 };
 
 // Ergebnis-Huelle: sagt der Seite, ob echte Daten kommen oder Demo-Daten
 export type DataView<T> = {
   configured: boolean; // sind Google-Zugangsdaten hinterlegt?
-  connected: boolean; // hat der Nutzer sein Google-Konto verbunden?
+  connected: boolean; // ist mindestens ein Google-Konto verbunden?
   demo: boolean; // sind das Beispiel-Daten?
   data: T;
+  // Team-Uebersicht: wer hat sein Google-Konto verbunden (fuer die kombinierte Ansicht)
+  accounts?: { userId: string; username: string; name: string; connected: boolean }[];
 };

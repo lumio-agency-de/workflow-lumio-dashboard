@@ -85,6 +85,7 @@ export default async function AnfragenPage() {
           configured={mailView.configured}
           connected={mailView.connected}
           demo={mailView.demo}
+          accounts={mailView.accounts}
         />
       </Reveal>
 

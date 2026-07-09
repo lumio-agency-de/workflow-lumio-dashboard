@@ -18,6 +18,8 @@ export async function syncLeadsFromMails(mails: MailItem[]): Promise<void> {
           subject: m.subject,
           snippet: m.snippet,
           mailDate: new Date(m.date),
+          mailboxUserId: m.ownerUserId,
+          mailboxEmail: m.ownerEmail ?? "",
         },
       });
     } catch {

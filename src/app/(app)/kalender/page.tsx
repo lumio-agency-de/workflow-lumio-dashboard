@@ -1,5 +1,6 @@
 // Kalender-Seite: Monatsansicht + anstehende Termine (+ Anlegen/Bearbeiten/Loeschen, wenn verbunden).
 import { Plus } from "lucide-react";
+import { auth } from "@/auth";
 import { getCalendarView } from "@/lib/dashboard-data";
 import { Panel, PageHeader } from "@/components/panel";
 import { Reveal } from "@/components/reveal";
@@ -14,7 +15,7 @@ const inputClass =
   "w-full rounded-lg border border-line bg-white/5 px-3 py-2 text-sm text-ink outline-none placeholder:text-muted focus:border-accent";
 
 export default async function KalenderPage() {
-  const view = await getCalendarView();
+  const [view, session] = await Promise.all([getCalendarView(), auth()]);
 
   return (
     <div>
@@ -27,6 +28,7 @@ export default async function KalenderPage() {
           configured={view.configured}
           connected={view.connected}
           demo={view.demo}
+          accounts={view.accounts}
         />
       </Reveal>
 
@@ -52,6 +54,24 @@ export default async function KalenderPage() {
                   Termin hinzufügen
                 </h2>
                 <form action={createEvent} className="flex flex-col gap-3">
+                  {(view.accounts?.filter((a) => a.connected).length ?? 0) > 1 && (
+                    <label className="flex flex-col gap-1 text-xs text-muted">
+                      Kalender
+                      <select
+                        name="calendarUserId"
+                        defaultValue={session?.user?.id}
+                        className={inputClass}
+                      >
+                        {view.accounts
+                          ?.filter((a) => a.connected)
+                          .map((a) => (
+                            <option key={a.userId} value={a.userId}>
+                              {a.name}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                  )}
                   <input name="title" placeholder="Titel" required className={inputClass} />
                   <input name="date" type="date" required className={inputClass} />
                   <div className="grid grid-cols-2 gap-3">

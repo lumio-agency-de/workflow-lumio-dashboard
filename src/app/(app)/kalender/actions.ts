@@ -10,17 +10,20 @@ import {
   deleteCalendarEvent,
 } from "@/lib/google/calendar";
 
-async function requireClient() {
+// Client fuer ein bestimmtes Konto (Kalender-Auswahl bzw. Termin-Besitzer),
+// faellt auf den eingeloggten Nutzer zurueck, wenn keins angegeben ist
+async function requireClient(targetUserId?: string) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Nicht angemeldet");
-  const client = await getGoogleClientForUser(session.user.id);
+  const client = await getGoogleClientForUser(targetUserId || session.user.id);
   // Ohne verbundenes Konto kann kein echter Termin bearbeitet werden
   if (!client) throw new Error("Kein Google-Konto verbunden");
   return client;
 }
 
 export async function createEvent(formData: FormData) {
-  const client = await requireClient();
+  const calendarUserId = String(formData.get("calendarUserId") ?? "");
+  const client = await requireClient(calendarUserId);
 
   const title = String(formData.get("title") ?? "").trim();
   const date = String(formData.get("date") ?? "");
@@ -45,7 +48,8 @@ export async function createEvent(formData: FormData) {
 }
 
 export async function updateEvent(formData: FormData) {
-  const client = await requireClient();
+  const ownerUserId = String(formData.get("ownerUserId") ?? "");
+  const client = await requireClient(ownerUserId);
 
   const id = String(formData.get("id") ?? "");
   const title = String(formData.get("title") ?? "").trim();
@@ -70,7 +74,8 @@ export async function updateEvent(formData: FormData) {
 }
 
 export async function deleteEvent(formData: FormData) {
-  const client = await requireClient();
+  const ownerUserId = String(formData.get("ownerUserId") ?? "");
+  const client = await requireClient(ownerUserId);
 
   const id = String(formData.get("id") ?? "");
   if (!id) return;

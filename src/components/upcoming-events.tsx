@@ -6,6 +6,7 @@ import { CalendarClock, MapPin, Pencil, Trash2, X } from "lucide-react";
 import type { CalEvent } from "@/lib/types";
 import { formatTime, formatDayShort, toDateInputValue, toTimeInputValue } from "@/lib/format";
 import { Panel } from "@/components/panel";
+import { colorForUsername } from "@/lib/team";
 import { updateEvent, deleteEvent } from "@/app/(app)/kalender/actions";
 
 const inputClass =
@@ -21,18 +22,20 @@ export default function UpcomingEvents({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
-  const handleSave = (id: string, formData: FormData) => {
+  const handleSave = (id: string, ownerUserId: string | undefined, formData: FormData) => {
     formData.set("id", id);
+    if (ownerUserId) formData.set("ownerUserId", ownerUserId);
     startTransition(async () => {
       await updateEvent(formData);
       setEditingId(null);
     });
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (id: string, ownerUserId: string | undefined) => {
     if (!confirm("Diesen Termin wirklich löschen?")) return;
     const formData = new FormData();
     formData.set("id", id);
+    if (ownerUserId) formData.set("ownerUserId", ownerUserId);
     startTransition(async () => {
       await deleteEvent(formData);
     });
@@ -49,7 +52,7 @@ export default function UpcomingEvents({
           editingId === e.id ? (
             <li key={e.id} className="rounded-xl border border-line p-3">
               <form
-                action={(formData) => handleSave(e.id, formData)}
+                action={(formData) => handleSave(e.id, e.ownerUserId, formData)}
                 className="flex flex-col gap-2"
               >
                 <input
@@ -114,7 +117,16 @@ export default function UpcomingEvents({
                 </span>
               </div>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium">{e.title}</div>
+                <div className="flex items-center gap-1.5">
+                  {e.ownerUsername && (
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: colorForUsername(e.ownerUsername) }}
+                      title={e.ownerName ?? e.ownerUsername}
+                    />
+                  )}
+                  <div className="truncate text-sm font-medium">{e.title}</div>
+                </div>
                 {e.location && (
                   <div className="flex items-center gap-1 text-xs text-muted">
                     <MapPin className="h-3 w-3" /> {e.location}
@@ -131,7 +143,7 @@ export default function UpcomingEvents({
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
                   <button
-                    onClick={() => handleDelete(e.id)}
+                    onClick={() => handleDelete(e.id, e.ownerUserId)}
                     className="rounded-lg p-1.5 text-muted transition-colors hover:text-red-400"
                     aria-label="Termin löschen"
                   >
