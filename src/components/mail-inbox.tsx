@@ -57,8 +57,11 @@ export default function MailInbox({
   // Compose-Fenster
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeTo, setComposeTo] = useState("");
+  const [composeCc, setComposeCc] = useState("");
   const [composeSubject, setComposeSubject] = useState("");
   const [composeText, setComposeText] = useState("");
+  // Bei einer Antwort: ID der Ursprungs-Mail (fuer Gmail-Threading); sonst undefined
+  const [replyToMessageId, setReplyToMessageId] = useState<string | undefined>(undefined);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [sendSuccess, setSendSuccess] = useState(false);
@@ -157,8 +160,10 @@ export default function MailInbox({
   // Compose-Fenster fuer eine neue Mail oeffnen
   function openCompose() {
     setComposeTo("");
+    setComposeCc("");
     setComposeSubject("");
     setComposeText(signature);
+    setReplyToMessageId(undefined);
     setSendError(null);
     setSendSuccess(false);
     setComposeOpen(true);
@@ -172,7 +177,10 @@ export default function MailInbox({
       ? selected.subject
       : `Re: ${selected.subject}`;
     setComposeTo(selected.fromEmail);
+    setComposeCc("");
     setComposeSubject(subj);
+    // ID der Ursprungs-Mail merken, damit die Antwort im Gmail-Thread landet
+    setReplyToMessageId(selected.id);
     setSendError(null);
     setSendSuccess(false);
     setComposeOpen(true);
@@ -205,8 +213,10 @@ export default function MailInbox({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           to: composeTo,
+          cc: composeCc,
           subject: composeSubject,
           text: composeText,
+          replyToMessageId,
         }),
       });
       const data = await res.json();
@@ -476,6 +486,13 @@ export default function MailInbox({
                 value={composeTo}
                 onChange={(e) => setComposeTo(e.target.value)}
                 placeholder="An (E-Mail-Adresse)"
+                className="rounded-xl border border-line bg-white/5 p-3 text-sm text-ink outline-none focus:border-accent"
+              />
+              <input
+                type="text"
+                value={composeCc}
+                onChange={(e) => setComposeCc(e.target.value)}
+                placeholder="Cc (optional, mehrere durch Komma getrennt)"
                 className="rounded-xl border border-line bg-white/5 p-3 text-sm text-ink outline-none focus:border-accent"
               />
               <input
