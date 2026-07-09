@@ -2,6 +2,7 @@
 // Kalender: alle verbundenen Konten gemeinsam (fuers Planen).
 // Mails: nur das eigene Postfach + das gemeinsame info@-Postfach (nicht die
 // Mails der anderen Kollegen), aus Datenschutzgruenden.
+import { cache } from "react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { googleConfigured } from "@/lib/env";
@@ -11,8 +12,10 @@ import { listRecentMessages } from "@/lib/google/gmail";
 import { syncLeadsFromMails } from "@/lib/leads";
 import type { CalEvent, MailItem, DataView } from "@/lib/types";
 
-// Alle Dashboard-Nutzer, jeweils mit Info ob + welches Google-Konto verbunden ist
-async function teamAccounts() {
+// Alle Dashboard-Nutzer, jeweils mit Info ob + welches Google-Konto verbunden ist.
+// Mit "cache" zwischengespeichert, da Kalender- und Mail-Abfrage das auf
+// derselben Seite (z. B. Startseite) sonst doppelt abfragen wuerden.
+const teamAccounts = cache(async function teamAccounts() {
   const users = await prisma.user.findMany({
     select: {
       id: true,
@@ -29,7 +32,7 @@ async function teamAccounts() {
     email: u.googleAccount?.email ?? "",
     connected: Boolean(u.googleAccount),
   }));
-}
+});
 
 // Kalender-Ansicht: Termine aus allen verbundenen Konten zusammengefuehrt
 export async function getCalendarView(): Promise<DataView<CalEvent[]>> {

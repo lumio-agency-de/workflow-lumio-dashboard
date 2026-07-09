@@ -1,5 +1,6 @@
 // Baut den Google-OAuth-Client und verwaltet die gespeicherten Tokens.
 // Nur serverseitig verwenden.
+import { cache } from "react";
 import { google } from "googleapis";
 import { prisma } from "@/lib/prisma";
 
@@ -42,7 +43,12 @@ export async function isGoogleConnected(userId: string): Promise<boolean> {
 
 // Liefert einen einsatzbereiten (bei Bedarf erneuerten) Client fuer den Nutzer.
 // Gibt null zurueck, wenn kein Google-Konto verbunden ist.
-export async function getGoogleClientForUser(userId: string) {
+// Mit React "cache" innerhalb EINES Seitenaufrufs zwischengespeichert, damit
+// z. B. Kalender- und Mail-Abfrage auf derselben Seite nicht denselben Client
+// (inkl. moeglichem Token-Refresh) doppelt aufbauen.
+export const getGoogleClientForUser = cache(async function getGoogleClientForUser(
+  userId: string
+) {
   const acc = await prisma.googleAccount.findUnique({ where: { userId } });
   if (!acc) return null;
 
@@ -74,4 +80,4 @@ export async function getGoogleClientForUser(userId: string) {
   });
 
   return client;
-}
+});
