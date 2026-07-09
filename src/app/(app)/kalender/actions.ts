@@ -9,6 +9,7 @@ import {
   updateCalendarEvent,
   deleteCalendarEvent,
 } from "@/lib/google/calendar";
+import { berlinTimeToUtc } from "@/lib/timezone";
 
 // Client fuer ein bestimmtes Konto (Kalender-Auswahl bzw. Termin-Besitzer),
 // faellt auf den eingeloggten Nutzer zurueck, wenn keins angegeben ist
@@ -25,8 +26,8 @@ async function requireClient(targetUserId?: string) {
 // ab ("The specified time range is empty") – das faengt hier ab statt die
 // Seite abstuerzen zu lassen.
 function resolveRange(date: string, startTime: string, endTime: string) {
-  const start = new Date(`${date}T${startTime}`);
-  let end = new Date(`${date}T${endTime}`);
+  const start = berlinTimeToUtc(date, startTime);
+  let end = berlinTimeToUtc(date, endTime);
   if (end.getTime() <= start.getTime()) {
     end = new Date(start.getTime() + 60 * 60000); // 1 Stunde spaeter
   }
