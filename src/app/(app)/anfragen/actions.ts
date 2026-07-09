@@ -18,6 +18,18 @@ async function requireSession() {
   return session;
 }
 
+// Anfragen werden bewusst ueber das allgemeine info@-Postfach gelesen/beantwortet,
+// unabhaengig davon, bei welchem Konto die Mail einging oder wer eingeloggt ist –
+// damit Kunden immer von der offiziellen Lumio-Adresse hoeren.
+// Faellt auf den eingeloggten Nutzer zurueck, falls info@ (noch) nicht verbunden ist.
+async function getInfoClient(fallbackUserId: string) {
+  const infoUser = await prisma.user.findUnique({ where: { username: "info" } });
+  const client =
+    (infoUser && (await getGoogleClientForUser(infoUser.id))) ||
+    (await getGoogleClientForUser(fallbackUserId));
+  return client;
+}
+
 // Alle betroffenen Seiten neu laden lassen
 function refresh() {
   revalidatePath("/anfragen");
@@ -128,9 +140,10 @@ export async function sendLeadMail(formData: FormData) {
   });
   if (!lead?.offer || !draft) return;
 
-  // Ueber das urspruengliche Postfach-Konto versenden, damit die Antwort von
-  // derselben Adresse kommt, an die die Anfrage ging
-  const client = await getGoogleClientForUser(lead.mailboxUserId ?? session.user.id);
+  // Bewusst ueber das allgemeine info@-Postfach versenden, unabhaengig davon,
+  // wo die Anfrage einging – Angebote sollen immer von der offiziellen
+  // Lumio-Adresse kommen, nicht von einem persoenlichen Konto
+  const client = await getInfoClient(session.user.id);
   if (!client) throw new Error("Kein Google-Konto verbunden.");
 
   // Angebots-PDF erzeugen und anhaengen

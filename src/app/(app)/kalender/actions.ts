@@ -21,6 +21,18 @@ async function requireClient(targetUserId?: string) {
   return client;
 }
 
+// Start/Ende aus Datum + Uhrzeit bilden. Google lehnt Termine mit Ende <= Start
+// ab ("The specified time range is empty") – das faengt hier ab statt die
+// Seite abstuerzen zu lassen.
+function resolveRange(date: string, startTime: string, endTime: string) {
+  const start = new Date(`${date}T${startTime}`);
+  let end = new Date(`${date}T${endTime}`);
+  if (end.getTime() <= start.getTime()) {
+    end = new Date(start.getTime() + 60 * 60000); // 1 Stunde spaeter
+  }
+  return { start, end };
+}
+
 export async function createEvent(formData: FormData) {
   const calendarUserId = String(formData.get("calendarUserId") ?? "");
   const client = await requireClient(calendarUserId);
@@ -32,9 +44,7 @@ export async function createEvent(formData: FormData) {
   const location = String(formData.get("location") ?? "").trim();
   if (!title || !date) return;
 
-  // Datum + Uhrzeit zu vollstaendigen Zeitpunkten zusammensetzen
-  const start = new Date(`${date}T${startTime}`);
-  const end = new Date(`${date}T${endTime}`);
+  const { start, end } = resolveRange(date, startTime, endTime);
 
   await createCalendarEvent(client, {
     title,
@@ -59,8 +69,7 @@ export async function updateEvent(formData: FormData) {
   const location = String(formData.get("location") ?? "").trim();
   if (!id || !title || !date) return;
 
-  const start = new Date(`${date}T${startTime}`);
-  const end = new Date(`${date}T${endTime}`);
+  const { start, end } = resolveRange(date, startTime, endTime);
 
   await updateCalendarEvent(client, id, {
     title,
