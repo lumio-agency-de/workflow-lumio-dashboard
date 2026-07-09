@@ -73,6 +73,81 @@ model CallNote {
   createdAt DateTime @default(now())
 }
 
+// Akquise-Ziel ("Prospect") – ein Betrieb aus dem Lead-Gen-Tool, den wir
+// kalt anrufen wollen. Wird vom leadgen-Runner in die DB gespuelt (Upsert
+// ueber dedupKey) und im Bereich "Leads" abgearbeitet. Bewusst getrennt vom
+// Modell `Lead` oben: `Lead` = EINGEHENDE Mail-Anfrage, `Prospect` = von uns
+// AUSGEHENDE Akquise. Die Auto-Felder (Bewertung) aktualisiert jeder
+// leadgen-Lauf; die manuellen CRM-Felder ruehrt der Sync nie an.
+model Prospect {
+  id        String   @id @default(cuid())
+  dedupKey  String   @unique               // stabiler Firmen-Schluessel (dedup._schluessel) – verhindert Doppel ueber Laeufe
+
+  // Stammdaten (auto)
+  name      String                          // Firmenname
+  branche   String   @default("")           // z. B. "heizung-sanitaer" (Kategorie im leadgen)
+  telefon   String   @default("")
+  adresse   String   @default("")
+  plz       String   @default("")
+  ort       String   @default("")
+  website   String   @default("")
+
+  // Bewertung (auto, jeder Lauf frischt sie auf)
+  segment     String @default("")           // "1 – Heiß (keine Website)" …
+  leadScore   Int    @default(0)            // hoeher = mehr Maengel = heisser Lead
+  grund       String @default("")           // Hauptmangel
+  designScore String @default("")           // KI-Design-Urteil 1–10 (leer, wenn ohne KI)
+  aufhaenger  String @default("")           // fertiger Gespraechseinstieg
+
+  // CRM / manuell (Sync fasst diese Felder NIE an)
+  status         String    @default("neu")   // neu | kontaktiert | interesse | kein_interesse | termin | erledigt
+  ansprechpartner String   @default("")
+  kontaktiertAm  DateTime?                    // gesetzt beim Abhaken
+  reaktion       String    @default("")
+  wiedervorlage  DateTime?
+  notiz          String    @default("")
+
+  // Meta
+  quellen        String    @default("")       // "gelbeseiten,google"
+  zuerstGesehen  DateTime  @default(now())
+  zuletztGesehen DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([branche, leadScore])
+  @@index([status])
+}
+
+// Such-Auftrag: der "Suche starten"-Knopf im Dashboard legt so eine Zeile an
+// (Status "angefragt"). Der leadgen-Runner (laeuft auf dem Mac/VPS) pollt
+// diese Tabelle, fuehrt die Suche aus, schreibt Fortschritt zurueck und
+// spuelt am Ende die Prospects ein. Vercel selbst fuehrt nichts aus.
+model SearchRequest {
+  id             String    @id @default(cuid())
+  branche        String                        // eine Branche je Auftrag
+  location       String                        // Ort oder PLZ
+  radiusKm       Float     @default(15)
+  quellen        String    @default("gelbeseiten,google,handwerk,branchenportale,social")
+  limit          Int       @default(30)
+  mitScreenshot  Boolean   @default(true)
+  mitKi          Boolean   @default(true)
+  verifyWebsites Boolean   @default(true)
+
+  status       String    @default("angefragt") // angefragt | laeuft | fertig | fehler
+  progress     String    @default("")           // letzte Fortschrittsmeldung des Runners
+  resolvedOrte String    @default("")           // aufgeloeste Umkreis-Orte (kommagetrennt)
+  newCount     Int?                             // neu hinzugekommene Prospects
+  totalCount   Int?                             // Prospects der Branche danach insgesamt
+  error        String    @default("")
+
+  requestedBy String?                           // Username, der die Suche gestartet hat
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  finishedAt  DateTime?
+
+  @@index([status])
+}
+
 // Einfacher Schluessel-Wert-Speicher fuer editierbare Texte (z. B. Telefon-Skript)
 model AppText {
   id        String   @id                     // z. B. "telefon-skript"

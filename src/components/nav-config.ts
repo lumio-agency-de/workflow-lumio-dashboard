@@ -9,6 +9,7 @@ import {
   Package,
   Phone,
   ListChecks,
+  Target,
   type LucideIcon,
 } from "lucide-react";
 
@@ -22,6 +23,7 @@ export type NavItem = {
 export const NAV: NavItem[] = [
   { href: "/", label: "Übersicht", icon: LayoutDashboard, exact: true },
   { href: "/anfragen", label: "Anfragen", icon: Inbox },
+  { href: "/leads", label: "Leads", icon: Target },
   { href: "/kalender", label: "Kalender", icon: Calendar },
   { href: "/mails", label: "E-Mails", icon: Mail },
   { href: "/auftraege", label: "Aufträge", icon: Briefcase },
