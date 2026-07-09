@@ -4,10 +4,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
-import { LogOut } from "lucide-react";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { LogOut, ChevronDown } from "lucide-react";
 import { logout } from "@/app/(app)/auth-actions";
-import { NAV } from "@/components/nav-config";
+import { NAV, isNavGroup, type NavItem, type NavGroup } from "@/components/nav-config";
 
 export default function DashboardSidebar({
   userName,
@@ -37,33 +38,13 @@ export default function DashboardSidebar({
 
       {/* Navigation */}
       <nav className="flex flex-1 flex-col gap-1">
-        {NAV.map((item) => {
-          const active = isActive(item.href, item.exact);
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={
-                "relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors " +
-                (active
-                  ? "text-ink"
-                  : "text-muted hover:text-ink")
-              }
-            >
-              {/* Animierter Hintergrund des aktiven Punkts (gleitet mit) */}
-              {active && (
-                <motion.span
-                  layoutId="nav-active"
-                  transition={{ type: "spring", stiffness: 400, damping: 32 }}
-                  className="absolute inset-0 rounded-xl border border-line bg-accent/10"
-                />
-              )}
-              <Icon className="relative z-10 h-[18px] w-[18px]" />
-              <span className="relative z-10">{item.label}</span>
-            </Link>
-          );
-        })}
+        {NAV.map((entry) =>
+          isNavGroup(entry) ? (
+            <NavFolder key={entry.label} group={entry} isActive={isActive} />
+          ) : (
+            <NavLink key={entry.href} item={entry} active={isActive(entry.href, entry.exact)} />
+          )
+        )}
       </nav>
 
       {/* Nutzer + Abmelden */}
@@ -88,5 +69,94 @@ export default function DashboardSidebar({
         </form>
       </div>
     </aside>
+  );
+}
+
+// Einzelner Navigationspunkt (Link) mit gleitendem Aktiv-Hintergrund
+function NavLink({
+  item,
+  active,
+  nested,
+}: {
+  item: NavItem;
+  active: boolean;
+  nested?: boolean;
+}) {
+  const Icon = item.icon;
+  return (
+    <Link
+      href={item.href}
+      className={
+        "relative flex items-center gap-3 rounded-xl py-2.5 text-sm font-medium transition-colors " +
+        (nested ? "pl-9 pr-3" : "px-3") +
+        (active ? " text-ink" : " text-muted hover:text-ink")
+      }
+    >
+      {active && (
+        <motion.span
+          layoutId="nav-active"
+          transition={{ type: "spring", stiffness: 400, damping: 32 }}
+          className="absolute inset-0 rounded-xl border border-line bg-accent/10"
+        />
+      )}
+      <Icon className="relative z-10 h-[18px] w-[18px]" />
+      <span className="relative z-10">{item.label}</span>
+    </Link>
+  );
+}
+
+// Ausklappbarer Ordner (z. B. "Vertrieb")
+function NavFolder({
+  group,
+  isActive,
+}: {
+  group: NavGroup;
+  isActive: (href: string, exact?: boolean) => boolean;
+}) {
+  const hasActiveChild = group.children.some((c) => isActive(c.href, c.exact));
+  // Standardmaessig offen, wenn ein Unterpunkt aktiv ist
+  const [open, setOpen] = useState(hasActiveChild);
+  const Icon = group.icon;
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={
+          "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors " +
+          (hasActiveChild ? "text-ink" : "text-muted hover:text-ink")
+        }
+      >
+        <Icon className="h-[18px] w-[18px]" />
+        <span className="flex-1 text-left">{group.label}</span>
+        <ChevronDown
+          className={"h-4 w-4 transition-transform " + (open ? "rotate-180" : "")}
+        />
+      </button>
+
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="mt-1 flex flex-col gap-1">
+              {group.children.map((child) => (
+                <NavLink
+                  key={child.href}
+                  item={child}
+                  active={isActive(child.href, child.exact)}
+                  nested
+                />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

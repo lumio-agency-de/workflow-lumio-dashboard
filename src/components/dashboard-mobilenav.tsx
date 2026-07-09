@@ -3,7 +3,7 @@
 // Navigationsleiste fuer kleine Bildschirme (oben, horizontal scrollbar).
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NAV } from "@/components/nav-config";
+import { NAV_FLAT } from "@/components/nav-config";
 
 export default function DashboardMobileNav() {
   const pathname = usePathname();
@@ -19,7 +19,7 @@ export default function DashboardMobileNav() {
       </div>
       {/* Scrollbare Icon-Leiste */}
       <nav className="flex gap-1 overflow-x-auto px-3 pb-3">
-        {NAV.map((item) => {
+        {NAV_FLAT.map((item) => {
           const active = isActive(item.href, item.exact);
           const Icon = item.icon;
           return (
