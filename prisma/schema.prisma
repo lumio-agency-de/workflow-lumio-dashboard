@@ -117,6 +117,9 @@ model Prospect {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
+  // Verknuepfte Kontakt-Vorbereitung (optional, 1:1) — im Bereich Akquise
+  contactPrep ContactPrep?
+
   @@index([branche, leadScore])
   @@index([status])
 }
@@ -248,4 +251,38 @@ model ChatMessage {
   createdAt   DateTime @default(now())        // Sendezeitpunkt
 
   @@index([scope, recipientId, senderId, createdAt])
+}
+
+// Kontakt-Vorbereitung (Bereich Akquise): pro Zielunternehmen eine Analyse +
+// Kontaktplanung als Vorbereitung fuer Anruf/Mail. Entsteht meist aus einem
+// Prospect (Lead-Liste), kann aber auch manuell angelegt werden. Firmen-/
+// Kontaktdaten werden bewusst KOPIERT (nicht nur verknuepft), damit Eintraege
+// unabhaengig vom Prospect bestehen bleiben.
+model ContactPrep {
+  id         String    @id @default(cuid())
+  prospectId String?   @unique                 // Herkunft aus der Lead-Liste (optional, 1:1)
+  prospect   Prospect? @relation(fields: [prospectId], references: [id], onDelete: SetNull)
+
+  // Firmen- + Kontaktdaten (aus Prospect kopiert oder manuell erfasst)
+  firma           String                        // Firmenname (Pflicht)
+  ort             String   @default("")
+  telefon         String   @default("")
+  email           String   @default("")         // Prospect hat keine Mail -> hier manuell ergaenzt
+  website         String   @default("")
+  ansprechpartner String   @default("")
+
+  // Analyse / Planung
+  websiteStatus       String @default("unbekannt") // keine | veraltet | okay | unbekannt
+  websiteMaengel      String @default("")           // Freitext: was ist an der Website falsch/fehlt
+  empfohleneLeistungen String @default("")          // kommagetrennte Leistungen (aus Paketen + frei)
+  kanal               String @default("telefon")    // telefon | mail | beide (bevorzugter Erstkontakt)
+
+  status  String @default("offen")                  // offen | vorbereitet | kontaktiert
+  notiz   String @default("")                       // freie Notizen fuers Gespraech
+
+  erstelltVon String?                               // Username, der die Vorbereitung angelegt hat
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
 }

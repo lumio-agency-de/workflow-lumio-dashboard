@@ -11,6 +11,8 @@ import {
   MessageSquare,
   Target,
   Radar,
+  ClipboardList,
+  TrendingUp,
   type LucideIcon,
 } from "lucide-react";
 
@@ -42,10 +44,17 @@ export const NAV: NavEntry[] = [
   { href: "/mails", label: "E-Mails", icon: Mail },
   { href: "/chat", label: "Chat", icon: MessageSquare },
   {
-    label: "Vertrieb",
-    icon: Target,
+    label: "Akquise",
+    icon: Radar,
     children: [
-      { href: "/leads", label: "Leads", icon: Radar },
+      { href: "/leads", label: "Leads", icon: Target },
+      { href: "/kontakt-vorbereitung", label: "Kontakt-Vorbereitung", icon: ClipboardList },
+    ],
+  },
+  {
+    label: "Vertrieb",
+    icon: TrendingUp,
+    children: [
       { href: "/anfragen", label: "Anfragen", icon: Inbox },
       { href: "/angebote", label: "Angebote", icon: FileText },
       { href: "/auftraege", label: "Aufträge", icon: Briefcase },
