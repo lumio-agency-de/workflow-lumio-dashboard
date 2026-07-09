@@ -84,6 +84,7 @@ export default async function AnfragenPage() {
         <GoogleConnectBanner
           configured={mailView.configured}
           connected={mailView.connected}
+          selfConnected={mailView.selfConnected}
           demo={mailView.demo}
           accounts={mailView.accounts}
         />
