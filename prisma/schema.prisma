@@ -50,7 +50,7 @@ model Lead {
   subject       String                          // Betreff der Anfrage
   snippet       String    @default("")          // Textauszug der Mail
   mailDate      DateTime                        // Datum der Mail
-  status        String    @default("neu")       // neu | angebot_erstellt | angebot_gesendet | gewonnen | verloren
+  status        String    @default("neu")       // neu | angebot_erstellt | angebot_gesendet | gewonnen | verloren | geloescht (Tombstone: ausgeblendet, verhindert Wieder-Anlage beim Mail-Sync)
   emailDraft    String    @default("")          // gespeicherter Mail-Vorschlag fuer den Versand
   sentAt        DateTime?                        // wann das Angebot verschickt wurde
   offerId       String?   @unique               // verknuepftes (automatisch erstelltes) Angebot
