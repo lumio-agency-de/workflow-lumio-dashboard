@@ -3,6 +3,7 @@
 // Mails: nur das eigene Postfach + das gemeinsame info@-Postfach (nicht die
 // Mails der anderen Kollegen), aus Datenschutzgruenden.
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { googleConfigured } from "@/lib/env";
@@ -11,6 +12,36 @@ import { listUpcomingEvents } from "@/lib/google/calendar";
 import { listRecentMessages } from "@/lib/google/gmail";
 import { syncLeadsFromMails } from "@/lib/leads";
 import type { CalEvent, MailItem, DataView } from "@/lib/types";
+
+// Google-Abrufe sind der langsamste Teil jeder Seite. Kurze Zwischenspeicherung
+// (pro Konto) sorgt dafuer, dass schnelles Wechseln zwischen Seiten nicht jedes
+// Mal erneut bei Google anfragt. Nach Aenderungen (Termin anlegen/bearbeiten/
+// loeschen) wird der jeweilige Eintrag sofort per revalidateTag geleert.
+const CACHE_SECONDS = 20;
+
+async function fetchEventsCached(userId: string) {
+  return unstable_cache(
+    async () => {
+      const client = await getGoogleClientForUser(userId);
+      if (!client) return [] as CalEvent[];
+      return listUpcomingEvents(client, 30);
+    },
+    ["calendar-events", userId],
+    { revalidate: CACHE_SECONDS, tags: [`calendar-${userId}`] }
+  )();
+}
+
+async function fetchMailsCached(userId: string) {
+  return unstable_cache(
+    async () => {
+      const client = await getGoogleClientForUser(userId);
+      if (!client) return [] as MailItem[];
+      return listRecentMessages(client, 20);
+    },
+    ["gmail-messages", userId],
+    { revalidate: CACHE_SECONDS, tags: [`mail-${userId}`] }
+  )();
+}
 
 // Alle Dashboard-Nutzer, jeweils mit Info ob + welches Google-Konto verbunden ist.
 // Mit "cache" zwischengespeichert, da Kalender- und Mail-Abfrage das auf
@@ -55,9 +86,7 @@ export async function getCalendarView(): Promise<DataView<CalEvent[]>> {
   const perAccount = await Promise.all(
     connectedMembers.map(async (member) => {
       try {
-        const client = await getGoogleClientForUser(member.userId);
-        if (!client) return [];
-        const events = await listUpcomingEvents(client, 30);
+        const events = await fetchEventsCached(member.userId);
         return events.map((e) => ({
           ...e,
           ownerUserId: member.userId,
@@ -115,9 +144,7 @@ async function loadMails(): Promise<DataView<MailItem[]>> {
   const perAccount = await Promise.all(
     connectedMembers.map(async (member) => {
       try {
-        const client = await getGoogleClientForUser(member.userId);
-        if (!client) return [];
-        const mails = await listRecentMessages(client, 20);
+        const mails = await fetchMailsCached(member.userId);
         return mails.map((m) => ({
           ...m,
           ownerUserId: member.userId,
