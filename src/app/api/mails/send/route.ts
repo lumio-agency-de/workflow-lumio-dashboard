@@ -4,7 +4,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getGoogleClientForUser } from "@/lib/google/client";
-import { sendMailWithAttachment } from "@/lib/google/gmail";
+import { sendMailWithAttachment, getMessageMeta } from "@/lib/google/gmail";
 
 export async function POST(request: Request) {
   // Nur angemeldete Nutzer duerfen senden
@@ -14,7 +14,13 @@ export async function POST(request: Request) {
   }
 
   // Eingaben auslesen
-  let body: { to?: string; subject?: string; text?: string };
+  let body: {
+    to?: string;
+    subject?: string;
+    text?: string;
+    cc?: string;
+    replyToMessageId?: string;
+  };
   try {
     body = await request.json();
   } catch {
@@ -24,6 +30,8 @@ export async function POST(request: Request) {
   const to = String(body.to ?? "").trim();
   const subject = String(body.subject ?? "").trim();
   const text = String(body.text ?? "");
+  const cc = String(body.cc ?? "").trim();
+  const replyToMessageId = String(body.replyToMessageId ?? "").trim();
 
   if (!to) {
     return NextResponse.json({ ok: false, error: "Empfänger fehlt" }, { status: 400 });
@@ -40,10 +48,27 @@ export async function POST(request: Request) {
 
   // Mail wirklich versenden
   try {
+    // Bei einer Antwort die Threading-Angaben der Ursprungs-Mail holen
+    let inReplyTo: string | undefined;
+    let references: string | undefined;
+    let threadId: string | undefined;
+    if (replyToMessageId) {
+      const meta = await getMessageMeta(client, replyToMessageId);
+      if (meta.messageIdHeader) {
+        inReplyTo = meta.messageIdHeader;
+        references = meta.messageIdHeader;
+      }
+      if (meta.threadId) threadId = meta.threadId;
+    }
+
     await sendMailWithAttachment(client, {
       to,
       subject: subject || "(kein Betreff)",
       text,
+      cc: cc || undefined,
+      inReplyTo,
+      references,
+      threadId,
     });
     return NextResponse.json({ ok: true });
   } catch (err) {
