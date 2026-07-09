@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { LogOut, ChevronDown } from "lucide-react";
 import { logout } from "@/app/(app)/auth-actions";
 import { NAV, isNavGroup, type NavItem, type NavGroup } from "@/components/nav-config";
+import ChatUnreadBadge from "@/components/chat-unread-badge";
 
 export default function DashboardSidebar({
   userName,
@@ -101,6 +102,12 @@ function NavLink({
       )}
       <Icon className="relative z-10 h-[18px] w-[18px]" />
       <span className="relative z-10">{item.label}</span>
+      {/* Ungelesen-Badge nur beim Chat-Link, rechtsbuendig */}
+      {item.href === "/chat" && (
+        <span className="relative z-10 ml-auto">
+          <ChatUnreadBadge />
+        </span>
+      )}
     </Link>
   );
 }
