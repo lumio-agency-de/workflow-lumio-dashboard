@@ -42,6 +42,7 @@ export const NAV: NavEntry[] = [
   { href: "/", label: "Übersicht", icon: LayoutDashboard, exact: true },
   { href: "/kalender", label: "Kalender", icon: Calendar },
   { href: "/mails", label: "E-Mails", icon: Mail },
+  { href: "/telefon", label: "Telefon", icon: Phone },
   { href: "/chat", label: "Chat", icon: MessageSquare },
   {
     label: "Akquise",
@@ -60,7 +61,6 @@ export const NAV: NavEntry[] = [
       { href: "/auftraege", label: "Aufträge", icon: Briefcase },
     ],
   },
-  { href: "/telefon", label: "Telefon", icon: Phone },
   { href: "/todos", label: "To-Dos", icon: ListChecks },
 ];
 
