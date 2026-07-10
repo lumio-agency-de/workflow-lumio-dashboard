@@ -80,6 +80,14 @@ export async function updateProspect(formData: FormData) {
   const ansprechpartner = formData.get("ansprechpartner");
   if (ansprechpartner != null) data.ansprechpartner = String(ansprechpartner);
 
+  // Wiedervorlage setzen/loeschen (z. B. aus dem KI-Follow-up-Vorschlag).
+  const wiedervorlage = formData.get("wiedervorlage");
+  if (wiedervorlage != null) {
+    const s = String(wiedervorlage).trim();
+    const d = s ? new Date(s) : null;
+    data.wiedervorlage = d && !Number.isNaN(d.getTime()) ? d : null;
+  }
+
   if (Object.keys(data).length === 0) return;
 
   await prisma.prospect.update({ where: { id }, data });
