@@ -20,6 +20,8 @@ model User {
   username     String   @unique              // Login-Name (z. B. "miko")
   name         String                        // Anzeigename (z. B. "Miko Bruell")
   passwordHash String                        // Passwort NUR gehasht (bcrypt), nie Klartext
+  mustChangePassword Boolean  @default(false) // erzwingt beim Login einen Passwort-Wechsel
+  passwordChangedAt  DateTime?               // Zeitpunkt des letzten Passwort-Wechsels
   createdAt    DateTime @default(now())      // Erstellzeitpunkt
 
   googleAccount GoogleAccount?               // verbundenes Google-Workspace-Konto (optional)
