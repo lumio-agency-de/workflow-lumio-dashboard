@@ -13,6 +13,7 @@ import {
   Radar,
   ClipboardList,
   TrendingUp,
+  Receipt,
   type LucideIcon,
 } from "lucide-react";
 
@@ -58,6 +59,7 @@ export const NAV: NavEntry[] = [
     children: [
       { href: "/anfragen", label: "Anfragen", icon: Inbox },
       { href: "/angebote", label: "Angebote", icon: FileText },
+      { href: "/rechnungen", label: "Rechnungen", icon: Receipt },
       { href: "/auftraege", label: "Aufträge", icon: Briefcase },
     ],
   },

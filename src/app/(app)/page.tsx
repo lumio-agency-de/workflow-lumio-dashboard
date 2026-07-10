@@ -12,6 +12,7 @@ import {
   Target,
   Flame,
   ClipboardList,
+  Receipt,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { auth } from "@/auth";
@@ -58,6 +59,13 @@ export default async function DashboardHome() {
       .count({ where: { status: { not: "kontaktiert" } } })
       .catch(() => 0),
   ]);
+
+  // Offene Rechnungen (offen + ueberfaellig = alles Unbezahlte). Die Rechnungs-
+  // Tabelle ist evtl. noch nicht migriert -> Fehler abfangen (Summe dann 0).
+  const openInvoicesSum = await prisma.invoice
+    .findMany({ where: { status: { not: "bezahlt" } }, select: { total: true } })
+    .then((rows) => rows.reduce((s, r) => s + r.total, 0))
+    .catch(() => 0);
 
   // Kennzahlen berechnen
   const eventsToday = calView.data.filter((e) => isToday(e.start));
@@ -134,6 +142,12 @@ export default async function DashboardHome() {
             value={formatEuro(openOffersSum)}
             icon={FileText}
             hint={`${openOffers.length} offen`}
+          />
+          <StatCard
+            label="Offene Rechnungen"
+            value={formatEuro(openInvoicesSum)}
+            icon={Receipt}
+            hint="offen + überfällig"
           />
         </div>
       </Reveal>
