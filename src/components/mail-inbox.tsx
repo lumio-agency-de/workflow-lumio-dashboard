@@ -62,6 +62,9 @@ export default function MailInbox({
   const [composeText, setComposeText] = useState("");
   // Bei einer Antwort: ID der Ursprungs-Mail (fuer Gmail-Threading); sonst undefined
   const [replyToMessageId, setReplyToMessageId] = useState<string | undefined>(undefined);
+  // Bei einer Antwort: das Postfach (GoogleAccount.id), in dem die Mail einging –
+  // damit die Antwort ueber genau dieses Konto (mit gueltigen Thread-IDs) geht.
+  const [composeAccountId, setComposeAccountId] = useState<string | undefined>(undefined);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [sendSuccess, setSendSuccess] = useState(false);
@@ -164,6 +167,7 @@ export default function MailInbox({
     setComposeSubject("");
     setComposeText(signature);
     setReplyToMessageId(undefined);
+    setComposeAccountId(undefined);
     setSendError(null);
     setSendSuccess(false);
     setComposeOpen(true);
@@ -181,6 +185,8 @@ export default function MailInbox({
     setComposeSubject(subj);
     // ID der Ursprungs-Mail merken, damit die Antwort im Gmail-Thread landet
     setReplyToMessageId(selected.id);
+    // Ueber das Postfach antworten, in dem die Mail einging
+    setComposeAccountId(selected.ownerAccountId);
     setSendError(null);
     setSendSuccess(false);
     setComposeOpen(true);
@@ -217,6 +223,7 @@ export default function MailInbox({
           subject: composeSubject,
           text: composeText,
           replyToMessageId,
+          accountId: composeAccountId,
         }),
       });
       const data = await res.json();
