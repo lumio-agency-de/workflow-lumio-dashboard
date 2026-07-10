@@ -13,6 +13,7 @@ import {
   Radar,
   ClipboardList,
   TrendingUp,
+  BarChart3,
   type LucideIcon,
 } from "lucide-react";
 
@@ -44,6 +45,7 @@ export const NAV: NavEntry[] = [
   { href: "/mails", label: "E-Mails", icon: Mail },
   { href: "/telefon", label: "Telefon", icon: Phone },
   { href: "/chat", label: "Chat", icon: MessageSquare },
+  { href: "/auswertung", label: "Auswertung", icon: BarChart3 },
   {
     label: "Akquise",
     icon: Radar,
