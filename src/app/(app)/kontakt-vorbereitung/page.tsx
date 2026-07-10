@@ -6,13 +6,25 @@ import { PageHeader, Panel } from "@/components/panel";
 import { Reveal } from "@/components/reveal";
 import PrepCard, { type PrepData } from "./prep-card";
 import { addFromProspect, addManual } from "./actions";
+import { DbUnavailable, isMissingTableError } from "@/components/db-unavailable";
 
 export const dynamic = "force-dynamic";
 
 const inputClass =
   "w-full rounded-lg border border-line bg-white/5 px-3 py-2 text-sm text-ink outline-none placeholder:text-muted focus:border-accent";
 
+// Faengt den Fall ab, dass die ContactPrep-/Prospect-Tabellen noch nicht
+// migriert sind (Hinweis statt 500-Seite).
 export default async function KontaktVorbereitungPage() {
+  try {
+    return await KontaktVorbereitungPageInner();
+  } catch (e) {
+    if (isMissingTableError(e)) return <DbUnavailable titel="Kontakt-Vorbereitung" />;
+    throw e;
+  }
+}
+
+async function KontaktVorbereitungPageInner() {
   // Vorhandene Vorbereitungen (inkl. Herkunft aus dem Lead-Tool)
   const preps = await prisma.contactPrep.findMany({
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
