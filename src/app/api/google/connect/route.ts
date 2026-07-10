@@ -18,12 +18,22 @@ export async function GET(request: Request) {
     );
   }
 
+  // Optionales Ziel nach dem Verbinden (nur relative Pfade), z. B. wenn der
+  // Connect aus den Nutzer-Einstellungen gestartet wird. Wird als OAuth-"state"
+  // durchgereicht und in der Callback-Route ausgewertet.
+  const redirectParam = new URL(request.url).searchParams.get("redirect") ?? "";
+  const state = redirectParam.startsWith("/") ? redirectParam : "";
+
   const client = createOAuthClient();
   const url = client.generateAuthUrl({
     access_type: "offline", // damit wir ein refresh_token bekommen
-    prompt: "consent", // Zustimmung immer anzeigen (sichert refresh_token)
+    // "select_account consent": laesst den Nutzer das Konto auswaehlen (noetig,
+    // um ein ZUSAETZLICHES Konto zu verbinden) und zeigt die Zustimmung immer
+    // an (sichert das refresh_token).
+    prompt: "select_account consent",
     scope: GOOGLE_SCOPES,
     include_granted_scopes: true,
+    ...(state ? { state } : {}),
   });
 
   return NextResponse.redirect(url);

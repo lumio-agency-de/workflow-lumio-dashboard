@@ -35,29 +35,46 @@ export async function GET(request: Request) {
     const me = await oauth2.userinfo.get();
     const email = me.data.email ?? "";
 
-    // Tokens fuer diesen Nutzer speichern (anlegen oder aktualisieren)
-    await prisma.googleAccount.upsert({
-      where: { userId: session.user.id },
-      update: {
-        email,
-        accessToken: tokens.access_token ?? "",
-        ...(tokens.refresh_token ? { refreshToken: tokens.refresh_token } : {}),
-        expiryDate: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
-        scope: tokens.scope ?? "",
-      },
-      create: {
-        userId: session.user.id,
-        email,
-        accessToken: tokens.access_token ?? "",
-        refreshToken: tokens.refresh_token ?? "",
-        expiryDate: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
-        scope: tokens.scope ?? "",
-      },
+    // Ein Nutzer kann MEHRERE Google-Konten verbinden. Existiert bereits eine
+    // Zeile mit derselben E-Mail fuer diesen Nutzer, aktualisieren wir sie
+    // (Token-Refresh); sonst wird ein NEUES Konto angelegt (statt das
+    // bestehende zu ersetzen).
+    const existing = await prisma.googleAccount.findFirst({
+      where: { userId: session.user.id, email },
+      select: { id: true },
     });
 
-    return NextResponse.redirect(
-      new URL("/kalender?google=verbunden", request.url)
-    );
+    if (existing) {
+      await prisma.googleAccount.update({
+        where: { id: existing.id },
+        data: {
+          email,
+          accessToken: tokens.access_token ?? "",
+          ...(tokens.refresh_token ? { refreshToken: tokens.refresh_token } : {}),
+          expiryDate: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
+          scope: tokens.scope ?? "",
+        },
+      });
+    } else {
+      await prisma.googleAccount.create({
+        data: {
+          userId: session.user.id,
+          email,
+          accessToken: tokens.access_token ?? "",
+          refreshToken: tokens.refresh_token ?? "",
+          expiryDate: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
+          scope: tokens.scope ?? "",
+        },
+      });
+    }
+
+    // Zurueck dorthin, wo der Connect gestartet wurde (via OAuth-"state"),
+    // sonst zur Kalender-Seite. Nur relative Pfade zulassen.
+    const stateParam = url.searchParams.get("state") ?? "";
+    const target = stateParam.startsWith("/") ? stateParam : "/kalender";
+    const dest = new URL(target, request.url);
+    dest.searchParams.set("google", "verbunden");
+    return NextResponse.redirect(dest);
   } catch {
     return NextResponse.redirect(
       new URL("/kalender?google=fehler", request.url)

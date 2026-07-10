@@ -32,24 +32,37 @@ export function createOAuthClient() {
   );
 }
 
-// Ist das Google-Konto dieses Nutzers verbunden?
+// Ist mindestens EIN Google-Konto dieses Nutzers verbunden?
 export async function isGoogleConnected(userId: string): Promise<boolean> {
-  const acc = await prisma.googleAccount.findUnique({
+  const acc = await prisma.googleAccount.findFirst({
     where: { userId },
     select: { id: true },
   });
   return Boolean(acc);
 }
 
-// Liefert einen einsatzbereiten (bei Bedarf erneuerten) Client fuer den Nutzer.
-// Gibt null zurueck, wenn kein Google-Konto verbunden ist.
-// Mit React "cache" innerhalb EINES Seitenaufrufs zwischengespeichert, damit
-// z. B. Kalender- und Mail-Abfrage auf derselben Seite nicht denselben Client
-// (inkl. moeglichem Token-Refresh) doppelt aufbauen.
-export const getGoogleClientForUser = cache(async function getGoogleClientForUser(
-  userId: string
+// Das aelteste (= primaere) verbundene Konto eines Nutzers, oder null.
+// Dient als Fallback fuer Aktionen, die "irgendein" Konto des Nutzers brauchen
+// (z. B. Senden ueber das eigene Postfach), seit ein Nutzer mehrere Konten
+// haben kann.
+export async function getPrimaryAccountId(userId: string): Promise<string | null> {
+  const acc = await prisma.googleAccount.findFirst({
+    where: { userId },
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
+  return acc?.id ?? null;
+}
+
+// Liefert einen einsatzbereiten (bei Bedarf erneuerten) Client fuer EIN
+// bestimmtes Google-Konto (per Konto-ID). Gibt null zurueck, wenn das Konto
+// nicht existiert. Mit React "cache" innerhalb EINES Seitenaufrufs
+// zwischengespeichert, damit z. B. Kalender- und Mail-Abfrage denselben Client
+// (inkl. moeglichem Token-Refresh) nicht doppelt aufbauen.
+export const getGoogleClientForAccount = cache(async function getGoogleClientForAccount(
+  accountId: string
 ) {
-  const acc = await prisma.googleAccount.findUnique({ where: { userId } });
+  const acc = await prisma.googleAccount.findUnique({ where: { id: accountId } });
   if (!acc) return null;
 
   const client = createOAuthClient();
@@ -63,7 +76,7 @@ export const getGoogleClientForUser = cache(async function getGoogleClientForUse
   client.on("tokens", (tokens) => {
     void prisma.googleAccount
       .update({
-        where: { userId },
+        where: { id: acc.id },
         data: {
           accessToken: tokens.access_token ?? acc.accessToken,
           expiryDate: tokens.expiry_date
@@ -81,3 +94,13 @@ export const getGoogleClientForUser = cache(async function getGoogleClientForUse
 
   return client;
 });
+
+// Bequemer Fallback: Client fuer das primaere Konto eines Nutzers.
+// Gibt null zurueck, wenn der Nutzer (noch) kein Konto verbunden hat.
+// Wird von Stellen genutzt, die "das Postfach des Nutzers" meinen, ohne ein
+// konkretes Konto zu kennen (z. B. Senden aus dem eigenen Postfach, info@).
+export async function getGoogleClientForUser(userId: string) {
+  const accountId = await getPrimaryAccountId(userId);
+  if (!accountId) return null;
+  return getGoogleClientForAccount(accountId);
+}

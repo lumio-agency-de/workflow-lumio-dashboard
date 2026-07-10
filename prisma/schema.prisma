@@ -22,7 +22,7 @@ model User {
   passwordHash String                        // Passwort NUR gehasht (bcrypt), nie Klartext
   createdAt    DateTime @default(now())      // Erstellzeitpunkt
 
-  googleAccount GoogleAccount?               // verbundenes Google-Workspace-Konto (optional)
+  googleAccounts GoogleAccount[]              // verbundene Google-Workspace-Konten (0..n pro Nutzer)
 
   sentChatMessages     ChatMessage[] @relation("SentChatMessages")     // vom Nutzer gesendete Chat-Nachrichten
   receivedChatMessages ChatMessage[] @relation("ReceivedChatMessages") // an den Nutzer gerichtete DM-Nachrichten
@@ -32,7 +32,7 @@ model User {
 // Wird angelegt, sobald ein Nutzer sein Google-Workspace-Konto verbindet.
 model GoogleAccount {
   id           String   @id @default(cuid())
-  userId       String   @unique
+  userId       String                        // Nutzer, dem dieses Konto gehoert (NICHT mehr unique: mehrere Konten pro Nutzer moeglich)
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   email        String                        // verbundene Google-Adresse
   accessToken  String                        // kurzlebiges Zugriffs-Token
@@ -41,6 +41,8 @@ model GoogleAccount {
   scope        String   @default("")         // erteilte Berechtigungen
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  @@index([userId])
 }
 
 // Anfrage (Lead) – wird automatisch aus E-Mails der Kategorie "Anfrage" angelegt

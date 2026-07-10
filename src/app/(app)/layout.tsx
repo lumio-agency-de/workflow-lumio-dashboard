@@ -2,6 +2,7 @@
 // Prueft den Login und rendert Seitenleiste (Desktop) bzw. Leiste (Mobil).
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
 import DashboardSidebar from "@/components/dashboard-sidebar";
 import DashboardMobileNav from "@/components/dashboard-mobilenav";
 
@@ -14,10 +15,23 @@ export default async function AppLayout({
   const session = await auth();
   if (!session?.user) redirect("/login");
 
+  // Verbundene Google-Konten des angemeldeten Nutzers (fuer das Einstellungs-Modal).
+  // Crash-sicher: falls die DB (noch) nicht erreichbar ist, leere Liste.
+  const googleAccounts = await prisma.googleAccount
+    .findMany({
+      where: { userId: session.user.id },
+      select: { id: true, email: true },
+      orderBy: { createdAt: "asc" },
+    })
+    .catch(() => []);
+
   return (
     <div className="flex min-h-screen">
       {/* Seitenleiste (ab Desktop-Breite sichtbar) */}
-      <DashboardSidebar userName={session.user.name ?? "Nutzer"} />
+      <DashboardSidebar
+        userName={session.user.name ?? "Nutzer"}
+        googleAccounts={googleAccounts}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Mobile Navigationsleiste */}
