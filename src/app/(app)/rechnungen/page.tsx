@@ -6,12 +6,23 @@ import { formatEuro, formatDate } from "@/lib/format";
 import { PageHeader } from "@/components/panel";
 import { Reveal } from "@/components/reveal";
 import { effectiveInvoiceStatus } from "@/lib/invoice";
+import { DbUnavailable, isMissingTableError } from "@/components/db-unavailable";
 import InvoiceStatusBadge from "./invoice-status-badge";
 import DeleteInvoiceButton from "./delete-invoice-button";
 
 export const dynamic = "force-dynamic";
 
+// Faengt den Fall ab, dass die Invoice-Tabelle noch nicht migriert ist.
 export default async function RechnungenPage() {
+  try {
+    return await RechnungenPageInner();
+  } catch (e) {
+    if (isMissingTableError(e)) return <DbUnavailable titel="Rechnungen" />;
+    throw e;
+  }
+}
+
+async function RechnungenPageInner() {
   const invoices = await prisma.invoice.findMany({
     orderBy: { createdAt: "desc" },
   });

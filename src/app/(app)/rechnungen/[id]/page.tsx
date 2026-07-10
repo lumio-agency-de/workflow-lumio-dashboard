@@ -26,10 +26,14 @@ export default async function RechnungDetailPage({
   const { id } = await params;
   const { created, sent } = await searchParams;
 
-  const invoice = await prisma.invoice.findUnique({
-    where: { id },
-    include: { items: { orderBy: { position: "asc" } } },
-  });
+  // .catch(null): faengt auch eine noch nicht migrierte Invoice-Tabelle ab
+  // (dann existiert die Rechnung ohnehin nicht → notFound).
+  const invoice = await prisma.invoice
+    .findUnique({
+      where: { id },
+      include: { items: { orderBy: { position: "asc" } } },
+    })
+    .catch(() => null);
   if (!invoice) notFound();
 
   const pdfUrl = `/api/rechnungen/${invoice.id}/pdf`;
