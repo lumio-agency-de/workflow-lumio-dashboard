@@ -2,8 +2,10 @@
 // Prueft den Login und rendert Seitenleiste (Desktop) bzw. Leiste (Mobil).
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
 import DashboardSidebar from "@/components/dashboard-sidebar";
 import DashboardMobileNav from "@/components/dashboard-mobilenav";
+import PasswordChangeForm from "@/components/password-change-form";
 
 export default async function AppLayout({
   children,
@@ -13,6 +15,38 @@ export default async function AppLayout({
   // Echter Schutz: ohne gueltige Session zurueck zum Login
   const session = await auth();
   if (!session?.user) redirect("/login");
+
+  // Gate: Muss der Nutzer sein Passwort wechseln, blockiert ein Vollbild-Formular
+  // die gesamte App, bis ein neues sicheres Passwort gesetzt wurde.
+  const dbUser = session.user.id
+    ? await prisma.user
+        .findUnique({
+          where: { id: session.user.id },
+          select: { mustChangePassword: true },
+        })
+        .catch(() => null)
+    : null;
+
+  if (dbUser?.mustChangePassword) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4">
+        <div className="w-full max-w-md">
+          <div className="mb-6 text-center">
+            <h1 className="font-display text-2xl font-bold text-gradient">
+              Neues Passwort erforderlich
+            </h1>
+            <p className="mt-2 text-sm text-muted">
+              Aus Sicherheitsgründen musst du ein neues, sicheres Passwort
+              setzen, bevor du das Dashboard nutzen kannst.
+            </p>
+          </div>
+          <div className="glass rounded-2xl p-6">
+            <PasswordChangeForm forced />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen">
