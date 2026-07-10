@@ -5,9 +5,24 @@ import { prisma } from "@/lib/prisma";
 import { generateInvoiceNumber } from "@/lib/invoice-number";
 import { toDateInputValue } from "@/lib/format";
 import { LUMIO_ZAHLUNGSZIEL_TAGE } from "@/lib/invoice";
+import { DbUnavailable, isMissingTableError } from "@/components/db-unavailable";
 import InvoiceForm, { type InvoiceFormInitial } from "./invoice-form";
 
 export const dynamic = "force-dynamic";
+
+type NeueRechnungProps = {
+  searchParams: Promise<{ fromOrder?: string; fromOffer?: string }>;
+};
+
+// Faengt den Fall ab, dass die Invoice-Tabelle noch nicht migriert ist.
+export default async function NeueRechnungPageWrapper(props: NeueRechnungProps) {
+  try {
+    return await NeueRechnungPage(props);
+  } catch (e) {
+    if (isMissingTableError(e)) return <DbUnavailable titel="Neue Rechnung" />;
+    throw e;
+  }
+}
 
 // leere Kundendaten als Ausgangsbasis
 const EMPTY_CUSTOMER = {
@@ -20,7 +35,7 @@ const EMPTY_CUSTOMER = {
   customerPhone: "",
 };
 
-export default async function NeueRechnungPage({
+async function NeueRechnungPage({
   searchParams,
 }: {
   searchParams: Promise<{ fromOrder?: string; fromOffer?: string }>;

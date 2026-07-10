@@ -10,14 +10,28 @@ import SearchPanel from "./search-panel";
 import ProspectRow from "./prospect-row";
 import HeuteDran from "./heute-dran";
 import { rankHeuteDran, heuteDranGrund, istFaellig } from "./ranking";
+import { DbUnavailable, isMissingTableError } from "@/components/db-unavailable";
 
 export const dynamic = "force-dynamic";
 
-export default async function LeadsPage({
-  searchParams,
-}: {
+type LeadsProps = {
   searchParams: Promise<{ branche?: string; nur_offen?: string }>;
-}) {
+};
+
+// Faengt den Fall ab, dass die Prospect-/SearchRequest-Tabellen noch nicht
+// migriert sind (dann zeigt die Seite einen Hinweis statt einer 500-Seite).
+export default async function LeadsPage(props: LeadsProps) {
+  try {
+    return await LeadsPageInner(props);
+  } catch (e) {
+    if (isMissingTableError(e)) return <DbUnavailable titel="Leads" />;
+    throw e;
+  }
+}
+
+async function LeadsPageInner({
+  searchParams,
+}: LeadsProps) {
   const { branche: brancheParam, nur_offen } = await searchParams;
   const nurOffen = nur_offen === "1";
 
