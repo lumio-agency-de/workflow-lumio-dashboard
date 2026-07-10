@@ -264,3 +264,54 @@ ${senderName} · Lumio`;
     return vorlage;
   }
 }
+
+// ---------------------------------------------------------------------------
+// 5) KI-Tagesbriefing fuer die Uebersicht: fasst die wichtigsten offenen
+//    Punkte des Tages in 2-3 Saetzen zusammen. Fallback ohne KI moeglich.
+// ---------------------------------------------------------------------------
+export type BriefingSignals = {
+  termineHeute: number;
+  ungeleseneMails: number;
+  neueAnfragen: number;
+  faelligeWiedervorlagen: number;
+  ueberfaelligeRechnungen: number;
+};
+
+export async function generateTagesbriefing(
+  s: BriefingSignals,
+  firstName: string
+): Promise<string> {
+  // Deterministische Kurzfassung (Fallback ohne KI, priorisiert)
+  const teile: string[] = [];
+  if (s.ueberfaelligeRechnungen)
+    teile.push(`${s.ueberfaelligeRechnungen} überfällige Rechnung(en)`);
+  if (s.faelligeWiedervorlagen)
+    teile.push(`${s.faelligeWiedervorlagen} fällige Wiedervorlage(n)`);
+  if (s.neueAnfragen) teile.push(`${s.neueAnfragen} neue Anfrage(n)`);
+  if (s.termineHeute) teile.push(`${s.termineHeute} Termin(e) heute`);
+  if (s.ungeleseneMails) teile.push(`${s.ungeleseneMails} ungelesene Mail(s)`);
+
+  const fallback = teile.length
+    ? `Heute wichtig: ${teile.join(", ")}.`
+    : "Alles ruhig – keine dringenden Punkte offen. Guter Moment für Akquise.";
+
+  // Ohne offene Punkte oder ohne API-Key: keinen KI-Aufruf machen.
+  if (!anthropicConfigured || teile.length === 0) return fallback;
+
+  try {
+    const text = await askClaude(
+      `Du bist die Assistenz im Dashboard der Webagentur Lumio. Fasse ${firstName} den Tag in 2-3 kurzen, motivierenden Sätzen auf Deutsch zusammen (per Du). Priorisiere: überfällige Rechnungen und fällige Wiedervorlagen zuerst, dann neue Anfragen, dann Termine und Mails. Nenne konkrete Zahlen, aber nur was wirklich anliegt (Nullwerte weglassen). Keine Aufzählungszeichen, keine Anrede-Zeile, kein Betreff – nur der Fließtext.`,
+      `Offene Punkte heute:
+- Überfällige Rechnungen: ${s.ueberfaelligeRechnungen}
+- Fällige Wiedervorlagen: ${s.faelligeWiedervorlagen}
+- Neue Anfragen: ${s.neueAnfragen}
+- Termine heute: ${s.termineHeute}
+- Ungelesene Mails: ${s.ungeleseneMails}
+
+Schreibe das kurze Tagesbriefing.`
+    );
+    return text || fallback;
+  } catch {
+    return fallback;
+  }
+}

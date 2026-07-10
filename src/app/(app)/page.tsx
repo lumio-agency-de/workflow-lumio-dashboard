@@ -13,12 +13,15 @@ import {
   Flame,
   ClipboardList,
   Receipt,
+  Sparkles,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { unstable_cache } from "next/cache";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getCalendarView, getMailView } from "@/lib/dashboard-data";
 import { getLeadSignals } from "@/lib/leads";
+import { generateTagesbriefing, type BriefingSignals } from "@/lib/ai";
 import { formatEuro, formatTime, formatDayShort, isToday } from "@/lib/format";
 import { Panel, PageHeader, StatCard } from "@/components/panel";
 import { Reveal } from "@/components/reveal";
@@ -67,6 +70,13 @@ export default async function DashboardHome() {
     .then((rows) => rows.reduce((s, r) => s + r.total, 0))
     .catch(() => 0);
 
+  // Ueberfaellige Rechnungen (unbezahlt + Faelligkeit in der Vergangenheit).
+  const ueberfaelligeRechnungen = await prisma.invoice
+    .count({
+      where: { status: { not: "bezahlt" }, dueDate: { lt: new Date() } },
+    })
+    .catch(() => 0);
+
   // Kennzahlen berechnen
   const eventsToday = calView.data.filter((e) => isToday(e.start));
   const unreadMails = mailView.data.filter((m) => m.unread);
@@ -81,6 +91,22 @@ export default async function DashboardHome() {
     year: "numeric",
   }).format(new Date());
 
+  // KI-Tagesbriefing: die wichtigsten offenen Punkte in 2-3 Saetzen. Gecacht je
+  // Signal-Snapshot (max. alle 15 min ein KI-Aufruf), damit haeufige Seiten-
+  // aufrufe keine Kosten verursachen. Fallback ohne KI ist eingebaut.
+  const briefingSignals: BriefingSignals = {
+    termineHeute: eventsToday.length,
+    ungeleseneMails: unreadMails.length,
+    neueAnfragen: leadSignals.neu,
+    faelligeWiedervorlagen: leadSignals.wiedervorlage,
+    ueberfaelligeRechnungen,
+  };
+  const tagesbriefing = await unstable_cache(
+    async (s: BriefingSignals, name: string) => generateTagesbriefing(s, name),
+    ["tagesbriefing", new Date().toISOString().slice(0, 10)],
+    { revalidate: 900 }
+  )(briefingSignals, firstName);
+
   return (
     <div>
       <Reveal>
@@ -88,6 +114,21 @@ export default async function DashboardHome() {
           title={`Hallo, ${firstName}`}
           subtitle={heute[0].toUpperCase() + heute.slice(1)}
         />
+      </Reveal>
+
+      {/* KI-Tagesbriefing: kurze Zusammenfassung der wichtigsten Punkte */}
+      <Reveal delay={0.02}>
+        <div className="glass mb-6 flex items-start gap-3 rounded-2xl border-accent/20 px-4 py-3.5">
+          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent">
+            <Sparkles className="h-[18px] w-[18px]" />
+          </span>
+          <div className="min-w-0">
+            <div className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-muted">
+              Tagesbriefing
+            </div>
+            <p className="text-sm leading-relaxed text-ink">{tagesbriefing}</p>
+          </div>
+        </div>
       </Reveal>
 
       {/* Hinweis auf neue Anfragen / faellige Wiedervorlagen */}
