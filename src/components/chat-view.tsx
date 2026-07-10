@@ -33,6 +33,17 @@ type Conversation =
 
 const POLL_MS = 4000;
 
+// Markiert den Chat als "gesehen": speichert den aktuellen Zeitpunkt und
+// benachrichtigt das Ungelesen-Badge in der Seitenleiste, damit es verschwindet.
+function markChatSeen() {
+  try {
+    localStorage.setItem("chatLastSeen", new Date().toISOString());
+    window.dispatchEvent(new Event("chat-seen"));
+  } catch {
+    // localStorage/Window nicht verfuegbar -> ignorieren
+  }
+}
+
 export default function ChatView({
   meId,
   users,
@@ -75,6 +86,8 @@ export default function ChatView({
         if (!res.ok) return;
         const data: { messages?: ChatMessage[] } = await res.json();
         setMessages(data.messages ?? []);
+        // Nach erfolgreichem Laden gilt der Chat als gesehen -> Badge zuruecksetzen
+        markChatSeen();
       } catch {
         // Netzwerkfehler still ignorieren; naechstes Polling versucht es erneut
       } finally {
@@ -109,6 +122,11 @@ export default function ChatView({
       clearInterval(interval);
     };
   }, [active, loadMessages]);
+
+  // Beim Betreten des Chats sofort als gesehen markieren (Badge verschwindet)
+  useEffect(() => {
+    markChatSeen();
+  }, []);
 
   // Nach neuen Nachrichten ans Ende scrollen
   useEffect(() => {

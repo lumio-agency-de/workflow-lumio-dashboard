@@ -73,6 +73,11 @@ export async function sendMailWithAttachment(
     subject: string;
     text: string;
     attachment?: { filename: string; data: Buffer };
+    // Optional: CC-Empfaenger und Threading-Angaben fuer Antworten
+    cc?: string;
+    inReplyTo?: string;
+    references?: string;
+    threadId?: string;
   }
 ): Promise<void> {
   const gmail = google.gmail({ version: "v1", auth: client });
@@ -81,7 +86,14 @@ export async function sendMailWithAttachment(
   const subjectEnc = `=?UTF-8?B?${Buffer.from(input.subject, "utf8").toString("base64")}?=`;
 
   // Die Roh-Nachricht im MIME-Format zusammenbauen
-  let mime = `To: ${input.to}\r\nSubject: ${subjectEnc}\r\nMIME-Version: 1.0\r\n`;
+  let mime = `To: ${input.to}\r\n`;
+  // CC-Empfaenger nur ergaenzen, wenn gesetzt
+  if (input.cc?.trim()) mime += `Cc: ${input.cc.trim()}\r\n`;
+  mime += `Subject: ${subjectEnc}\r\n`;
+  // Threading-Header, damit Gmail die Antwort dem Ursprungs-Thread zuordnet
+  if (input.inReplyTo) mime += `In-Reply-To: ${input.inReplyTo}\r\n`;
+  if (input.references) mime += `References: ${input.references}\r\n`;
+  mime += `MIME-Version: 1.0\r\n`;
 
   if (input.attachment) {
     const boundary = "lumio_" + Date.now().toString(36);
@@ -105,10 +117,35 @@ export async function sendMailWithAttachment(
   }
 
   // Gmail erwartet die Nachricht base64url-kodiert
+  const requestBody: { raw: string; threadId?: string } = {
+    raw: Buffer.from(mime).toString("base64url"),
+  };
+  // Bei Antworten die Thread-ID mitgeben, damit Gmail sie im selben Thread ablegt
+  if (input.threadId) requestBody.threadId = input.threadId;
+
   await gmail.users.messages.send({
     userId: "me",
-    requestBody: { raw: Buffer.from(mime).toString("base64url") },
+    requestBody,
   });
+}
+
+// Metadaten einer Nachricht laden (fuer sauberes Threading beim Antworten)
+export async function getMessageMeta(
+  client: OAuthClient,
+  id: string
+): Promise<{ messageIdHeader: string; threadId: string }> {
+  const gmail = google.gmail({ version: "v1", auth: client });
+  const d = await gmail.users.messages.get({
+    userId: "me",
+    id,
+    format: "metadata",
+    metadataHeaders: ["Message-ID"],
+  });
+  const headers = d.data.payload?.headers ?? [];
+  return {
+    messageIdHeader: header(headers, "Message-ID"),
+    threadId: d.data.threadId ?? "",
+  };
 }
 
 // Volltext einer Nachricht laden (fuer den KI-Antwortvorschlag)
