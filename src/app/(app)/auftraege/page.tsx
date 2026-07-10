@@ -1,5 +1,6 @@
 // Auftrags-Board: Spalten nach Status + Formular zum Anlegen.
-import { Briefcase, CalendarClock, Euro } from "lucide-react";
+import Link from "next/link";
+import { Briefcase, CalendarClock, Euro, Receipt } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatEuro, formatDayShort } from "@/lib/format";
 import { Panel, PageHeader } from "@/components/panel";
@@ -131,6 +132,14 @@ export default async function AuftraegePage() {
                     <div className="mt-3">
                       <OrderStatusSelect id={o.id} status={o.status} />
                     </div>
+
+                    {/* Rechnung aus diesem Auftrag erzeugen (Formular vorbefuellt) */}
+                    <Link
+                      href={`/rechnungen/neu?fromOrder=${o.id}`}
+                      className="mt-3 flex items-center justify-center gap-2 rounded-lg border border-line px-3 py-2 text-xs font-medium text-ink transition-colors hover:border-accent/30 hover:bg-accent/10"
+                    >
+                      <Receipt className="h-3.5 w-3.5" /> Rechnung erstellen
+                    </Link>
                   </Panel>
                 ))}
               </div>

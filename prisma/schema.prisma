@@ -241,6 +241,55 @@ model OfferItem {
   createdAt DateTime @default(now())
 }
 
+// Eine erstellte Rechnung (Kopf-Daten + Kunde) – Aufbau analog zu Offer.
+// Entsteht meist aus einem gewonnenen Angebot oder einem Auftrag (Herkunft
+// optional ueber offerId/orderId festgehalten). Bewusst OHNE Prisma-Relation
+// zu Offer/Order: die Kunden-/Positionsdaten werden KOPIERT, damit die Rechnung
+// unabhaengig bestehen bleibt (und der Diff an Offer/Order minimal ist).
+model Invoice {
+  id              String   @id @default(cuid())
+  number          String   @unique           // Rechnungsnummer, z. B. RE-2026-001
+  date            DateTime @default(now())    // Rechnungsdatum
+  dueDate         DateTime                    // Faelligkeit (zahlbar bis)
+
+  // Kundendaten (Empfaenger der Rechnung)
+  customerCompany String                      // Firmen- oder Personenname (Pflicht)
+  customerContact String   @default("")       // Ansprechpartner
+  customerStreet  String   @default("")       // Strasse + Hausnummer
+  customerZip     String   @default("")       // PLZ
+  customerCity    String   @default("")       // Ort
+  customerEmail   String   @default("")       // E-Mail (optional)
+  customerPhone   String   @default("")       // Telefon (optional)
+
+  notes           String   @default("")       // optionales Freitext-Notizfeld fuers PDF
+  total           Float    @default(0)         // berechnete Gesamtsumme netto
+  status          String   @default("offen")   // offen | bezahlt | ueberfaellig
+
+  // Herkunft (optional, nur als ID vermerkt – keine harte Relation)
+  orderId         String?                      // Auftrag, aus dem die Rechnung entstand
+  offerId         String?                      // Angebot, aus dem die Rechnung entstand
+
+  items           InvoiceItem[]                // die einzelnen Positionen
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Eine einzelne Position innerhalb einer Rechnung (analog OfferItem)
+model InvoiceItem {
+  id        String   @id @default(cuid())
+  invoiceId String                            // gehoert zu welcher Rechnung
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  position  Int                               // laufende Pos.-Nr. (1, 2, 3, ...)
+  label     String                            // Bezeichnung der Leistung
+  quantity  Float    @default(1)              // Menge
+  unitPrice Float    @default(0)              // Einzelpreis netto
+  lineTotal Float    @default(0)              // Menge * Einzelpreis
+  createdAt DateTime @default(now())
+
+  @@index([invoiceId])
+}
+
 // Interner Chat zwischen den Dashboard-Nutzern.
 // Bildet sowohl den gemeinsamen Team-Channel (scope="team") als auch
 // 1:1-Direktnachrichten (scope="dm") in einer Tabelle ab.
