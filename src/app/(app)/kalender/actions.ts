@@ -3,7 +3,10 @@
 // Termine im Google-Kalender anlegen/bearbeiten/loeschen (nur wenn ein Konto verbunden ist).
 import { auth } from "@/auth";
 import { revalidatePath, updateTag } from "next/cache";
-import { getGoogleClientForUser } from "@/lib/google/client";
+import {
+  getGoogleClientForAccount,
+  getPrimaryAccountId,
+} from "@/lib/google/client";
 import {
   createCalendarEvent,
   updateCalendarEvent,
@@ -11,18 +14,30 @@ import {
 } from "@/lib/google/calendar";
 import { berlinTimeToUtc } from "@/lib/timezone";
 
-// Client fuer ein bestimmtes Konto (Kalender-Auswahl bzw. Termin-Besitzer),
-// faellt auf den eingeloggten Nutzer zurueck, wenn keins angegeben ist.
-// Gibt auch die aufgeloeste Nutzer-ID zurueck, um danach gezielt den
-// Zwischenspeicher (siehe dashboard-data.ts) fuer genau dieses Konto zu leeren.
-async function requireClient(targetUserId?: string) {
+// Client fuer EIN konkretes Konto (GoogleAccount.id). Der Zwischenspeicher
+// (siehe dashboard-data.ts) wird pro Konto gefuehrt, daher geben wir die
+// Konto-ID zurueck, um danach gezielt `calendar-<accountId>` zu leeren.
+async function requireClientForAccount(accountId: string) {
+  const client = await getGoogleClientForAccount(accountId);
+  if (!client) throw new Error("Kein Google-Konto verbunden");
+  return { client, accountId };
+}
+
+// Loest ein Konto aus den Formulardaten auf: bevorzugt die direkt uebergebene
+// Konto-ID (ownerAccountId beim Bearbeiten/Loeschen), sonst das primaere Konto
+// des gewaehlten Nutzers (calendarUserId beim Anlegen), sonst das primaere
+// Konto des eingeloggten Nutzers.
+async function resolveAccountId(
+  explicitAccountId: string,
+  fallbackUserId: string
+): Promise<string> {
+  if (explicitAccountId) return explicitAccountId;
   const session = await auth();
   if (!session?.user?.id) throw new Error("Nicht angemeldet");
-  const userId = targetUserId || session.user.id;
-  const client = await getGoogleClientForUser(userId);
-  // Ohne verbundenes Konto kann kein echter Termin bearbeitet werden
-  if (!client) throw new Error("Kein Google-Konto verbunden");
-  return { client, userId };
+  const userId = fallbackUserId || session.user.id;
+  const accountId = await getPrimaryAccountId(userId);
+  if (!accountId) throw new Error("Kein Google-Konto verbunden");
+  return accountId;
 }
 
 // Start/Ende aus Datum + Uhrzeit bilden. Google lehnt Termine mit Ende <= Start
@@ -39,7 +54,8 @@ function resolveRange(date: string, startTime: string, endTime: string) {
 
 export async function createEvent(formData: FormData) {
   const calendarUserId = String(formData.get("calendarUserId") ?? "");
-  const { client, userId } = await requireClient(calendarUserId);
+  const accountId = await resolveAccountId("", calendarUserId);
+  const { client } = await requireClientForAccount(accountId);
 
   const title = String(formData.get("title") ?? "").trim();
   const date = String(formData.get("date") ?? "");
@@ -57,14 +73,16 @@ export async function createEvent(formData: FormData) {
     location: location || undefined,
   });
 
-  updateTag(`calendar-${userId}`);
+  updateTag(`calendar-${accountId}`);
   revalidatePath("/kalender");
   revalidatePath("/");
 }
 
 export async function updateEvent(formData: FormData) {
+  const ownerAccountId = String(formData.get("ownerAccountId") ?? "");
   const ownerUserId = String(formData.get("ownerUserId") ?? "");
-  const { client, userId } = await requireClient(ownerUserId);
+  const accountId = await resolveAccountId(ownerAccountId, ownerUserId);
+  const { client } = await requireClientForAccount(accountId);
 
   const id = String(formData.get("id") ?? "");
   const title = String(formData.get("title") ?? "").trim();
@@ -83,21 +101,23 @@ export async function updateEvent(formData: FormData) {
     location: location || undefined,
   });
 
-  updateTag(`calendar-${userId}`);
+  updateTag(`calendar-${accountId}`);
   revalidatePath("/kalender");
   revalidatePath("/");
 }
 
 export async function deleteEvent(formData: FormData) {
+  const ownerAccountId = String(formData.get("ownerAccountId") ?? "");
   const ownerUserId = String(formData.get("ownerUserId") ?? "");
-  const { client, userId } = await requireClient(ownerUserId);
+  const accountId = await resolveAccountId(ownerAccountId, ownerUserId);
+  const { client } = await requireClientForAccount(accountId);
 
   const id = String(formData.get("id") ?? "");
   if (!id) return;
 
   await deleteCalendarEvent(client, id);
 
-  updateTag(`calendar-${userId}`);
+  updateTag(`calendar-${accountId}`);
   revalidatePath("/kalender");
   revalidatePath("/");
 }

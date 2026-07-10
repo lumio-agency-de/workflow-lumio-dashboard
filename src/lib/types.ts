@@ -12,6 +12,10 @@ export type CalEvent = {
   ownerUserId?: string;
   ownerUsername?: string;
   ownerName?: string;
+  // Konkretes Konto (GoogleAccount.id), aus dem der Termin stammt – noetig, um
+  // ihn spaeter im richtigen Kalender zu bearbeiten/loeschen (ein Nutzer kann
+  // mehrere Konten haben).
+  ownerAccountId?: string;
 };
 
 // Moegliche E-Mail-Kategorien (fuer die Sortierung)
@@ -37,6 +41,10 @@ export type MailItem = {
   ownerUsername?: string;
   ownerName?: string;
   ownerEmail?: string;
+  // Konkretes Konto (GoogleAccount.id), in dem die Mail einging – noetig, um die
+  // Antwort ueber genau dieses Postfach zu senden (Threading-IDs sind pro
+  // Postfach gueltig; ein Nutzer kann mehrere Konten haben).
+  ownerAccountId?: string;
 };
 
 // Ergebnis-Huelle: sagt der Seite, ob echte Daten kommen oder Demo-Daten

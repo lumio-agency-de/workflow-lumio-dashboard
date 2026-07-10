@@ -22,20 +22,22 @@ export default function UpcomingEvents({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
-  const handleSave = (id: string, ownerUserId: string | undefined, formData: FormData) => {
-    formData.set("id", id);
-    if (ownerUserId) formData.set("ownerUserId", ownerUserId);
+  const handleSave = (e: CalEvent, formData: FormData) => {
+    formData.set("id", e.id);
+    if (e.ownerAccountId) formData.set("ownerAccountId", e.ownerAccountId);
+    if (e.ownerUserId) formData.set("ownerUserId", e.ownerUserId);
     startTransition(async () => {
       await updateEvent(formData);
       setEditingId(null);
     });
   };
 
-  const handleDelete = (id: string, ownerUserId: string | undefined) => {
+  const handleDelete = (e: CalEvent) => {
     if (!confirm("Diesen Termin wirklich löschen?")) return;
     const formData = new FormData();
-    formData.set("id", id);
-    if (ownerUserId) formData.set("ownerUserId", ownerUserId);
+    formData.set("id", e.id);
+    if (e.ownerAccountId) formData.set("ownerAccountId", e.ownerAccountId);
+    if (e.ownerUserId) formData.set("ownerUserId", e.ownerUserId);
     startTransition(async () => {
       await deleteEvent(formData);
     });
@@ -52,7 +54,7 @@ export default function UpcomingEvents({
           editingId === e.id ? (
             <li key={e.id} className="rounded-xl border border-line p-3">
               <form
-                action={(formData) => handleSave(e.id, e.ownerUserId, formData)}
+                action={(formData) => handleSave(e, formData)}
                 className="flex flex-col gap-2"
               >
                 <input
@@ -143,7 +145,7 @@ export default function UpcomingEvents({
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
                   <button
-                    onClick={() => handleDelete(e.id, e.ownerUserId)}
+                    onClick={() => handleDelete(e)}
                     className="rounded-lg p-1.5 text-muted transition-colors hover:text-red-400"
                     aria-label="Termin löschen"
                   >
