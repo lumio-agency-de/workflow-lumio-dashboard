@@ -176,9 +176,10 @@ export default function ChatView({
 
   return (
     <Panel className="flex h-[70vh] min-h-[520px] overflow-hidden">
-      {/* Linke Spalte: Konversationsliste */}
-      <aside className="flex w-56 shrink-0 flex-col border-r border-line">
-        <div className="border-b border-line px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted">
+      {/* Linke Spalte: Konversationsliste.
+          Auf dem Handy als schmale Icon-Schiene (w-16), ab sm mit Namen. */}
+      <aside className="flex w-16 shrink-0 flex-col border-r border-line sm:w-56">
+        <div className="hidden border-b border-line px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted sm:block">
           Konversationen
         </div>
         <nav className="flex flex-col gap-1 overflow-y-auto p-2">
@@ -186,15 +187,16 @@ export default function ChatView({
           <button
             type="button"
             onClick={() => openConversation({ kind: "team" })}
+            title="Team-Channel"
             className={
-              "flex items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition " +
+              "flex items-center justify-center gap-2 rounded-xl px-2 py-2 text-left text-sm transition sm:justify-start sm:px-3 " +
               (active.kind === "team"
                 ? "bg-accent/15 text-accent"
                 : "text-ink hover:bg-white/5")
             }
           >
             <Hash className="h-4 w-4 shrink-0" />
-            <span className="truncate font-medium">Team</span>
+            <span className="hidden truncate font-medium sm:inline">Team</span>
           </button>
 
           {/* DMs je anderem Nutzer */}
@@ -206,8 +208,9 @@ export default function ChatView({
                 key={u.id}
                 type="button"
                 onClick={() => openConversation({ kind: "dm", userId: u.id })}
+                title={u.name}
                 className={
-                  "flex items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition " +
+                  "flex items-center justify-center gap-2 rounded-xl px-2 py-2 text-left text-sm transition sm:justify-start sm:px-3 " +
                   (activeDm ? "bg-accent/15 text-accent" : "text-ink hover:bg-white/5")
                 }
               >
@@ -216,7 +219,7 @@ export default function ChatView({
                   className="h-2.5 w-2.5 shrink-0 rounded-full"
                   style={{ backgroundColor: color }}
                 />
-                <span className="truncate font-medium">{u.name}</span>
+                <span className="hidden truncate font-medium sm:inline">{u.name}</span>
               </button>
             );
           })}
