@@ -11,6 +11,10 @@ import {
   Globe,
   ChevronDown,
   ClipboardList,
+  Sparkles,
+  Copy,
+  Check,
+  CalendarClock,
 } from "lucide-react";
 import { PROSPECT_STATUS, statusInfo, scoreClass } from "@/lib/akquise";
 import { updateProspect } from "./actions";
@@ -39,6 +43,64 @@ export default function ProspectRow({ p }: { p: P }) {
   const [offen, setOffen] = useState(false);
   const kontaktiert = p.status !== "neu";
   const info = statusInfo(p.status);
+
+  // KI-Follow-up ("naechster Schritt") – nur auf Knopfdruck.
+  type FollowUp = {
+    schritt: string;
+    text: string;
+    wiedervorlageInTagen: number | null;
+  };
+  const [fu, setFu] = useState<FollowUp | null>(null);
+  const [fuLoading, setFuLoading] = useState(false);
+  const [fuError, setFuError] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [wvSet, setWvSet] = useState(false);
+
+  async function loadNextStep() {
+    setFuLoading(true);
+    setFuError(false);
+    setCopied(false);
+    setWvSet(false);
+    try {
+      const res = await fetch("/api/akquise/follow-up", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firma: p.name,
+          status: p.status,
+          reaktion: p.reaktion,
+          notiz: p.notiz,
+        }),
+      });
+      if (!res.ok) throw new Error("Fehler");
+      const data = (await res.json()) as FollowUp;
+      setFu({
+        schritt: data.schritt,
+        text: data.text,
+        wiedervorlageInTagen: data.wiedervorlageInTagen ?? null,
+      });
+    } catch {
+      setFuError(true);
+    } finally {
+      setFuLoading(false);
+    }
+  }
+
+  function copyText(text: string) {
+    navigator.clipboard?.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }
+
+  // Wiedervorlage in N Tagen setzen (nutzt das vorhandene Feld).
+  function setWiedervorlage(tage: number) {
+    const d = new Date();
+    d.setDate(d.getDate() + tage);
+    d.setHours(9, 0, 0, 0);
+    submit({ wiedervorlage: d.toISOString() });
+    setWvSet(true);
+  }
 
   function submit(felder: Record<string, string>) {
     const fd = new FormData();
@@ -194,6 +256,67 @@ export default function ProspectRow({ p }: { p: P }) {
               className="rounded-lg border border-line bg-white/5 px-2 py-1.5 text-sm text-ink outline-none focus:border-accent"
             />
           </label>
+
+          {/* KI-Follow-up: naechster Schritt */}
+          <div className="flex flex-col gap-2 border-t border-line pt-3">
+            <button
+              type="button"
+              onClick={loadNextStep}
+              disabled={fuLoading}
+              className="flex w-fit items-center gap-1.5 rounded-lg border border-line bg-white/5 px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:border-accent/40 hover:text-accent disabled:opacity-50"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {fuLoading ? "Denkt nach …" : "Nächster Schritt (KI)"}
+            </button>
+
+            {fuError && (
+              <p className="text-xs text-rose-400">
+                Vorschlag konnte nicht geladen werden.
+              </p>
+            )}
+
+            {fu && (
+              <div className="flex flex-col gap-2 rounded-xl border border-accent/25 bg-accent/5 p-3">
+                <div>
+                  <div className="mb-0.5 text-xs uppercase tracking-wide text-accent">
+                    Empfehlung
+                  </div>
+                  <p className="text-sm font-medium text-ink">{fu.schritt}</p>
+                </div>
+                <p className="whitespace-pre-wrap text-sm text-muted">{fu.text}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => copyText(fu.text)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-line bg-white/5 px-2 py-1 text-xs text-muted transition-colors hover:text-ink"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="h-3 w-3 text-emerald-300" /> Kopiert
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3 w-3" /> Kopieren
+                      </>
+                    )}
+                  </button>
+                  {fu.wiedervorlageInTagen != null && (
+                    <button
+                      type="button"
+                      onClick={() => setWiedervorlage(fu.wiedervorlageInTagen as number)}
+                      disabled={wvSet}
+                      className="inline-flex items-center gap-1 rounded-lg border border-line bg-white/5 px-2 py-1 text-xs text-muted transition-colors hover:border-accent/40 hover:text-accent disabled:opacity-50"
+                    >
+                      <CalendarClock className="h-3 w-3" />
+                      {wvSet
+                        ? "Wiedervorlage gesetzt"
+                        : `Wiedervorlage in ${fu.wiedervorlageInTagen} Tagen`}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </li>

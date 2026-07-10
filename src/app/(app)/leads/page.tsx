@@ -8,6 +8,8 @@ import { Reveal } from "@/components/reveal";
 import { brancheLabel } from "@/lib/akquise";
 import SearchPanel from "./search-panel";
 import ProspectRow from "./prospect-row";
+import HeuteDran from "./heute-dran";
+import { rankHeuteDran, heuteDranGrund, istFaellig } from "./ranking";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +57,37 @@ export default async function LeadsPage({
       })
     : 0;
 
+  // "Heute dran": ueber ALLE Branchen die dringendsten Prospects priorisieren
+  // (rein regelbasiert, keine KI). Nach faelliger Wiedervorlage + Score laden,
+  // damit auch niedrig bewertete, aber faellige Leads sicher dabei sind.
+  const now = new Date();
+  const heuteKandidaten = await prisma.prospect.findMany({
+    where: { status: { in: ["neu", "kontaktiert", "interesse", "termin"] } },
+    orderBy: [{ wiedervorlage: { sort: "asc", nulls: "last" } }, { leadScore: "desc" }],
+    take: 500,
+    select: {
+      id: true,
+      name: true,
+      ort: true,
+      telefon: true,
+      leadScore: true,
+      status: true,
+      wiedervorlage: true,
+      contactPrep: { select: { id: true } },
+    },
+  });
+  const heuteTop = rankHeuteDran(heuteKandidaten, now, 8).map((p) => ({
+    id: p.id,
+    name: p.name,
+    ort: p.ort,
+    telefon: p.telefon,
+    leadScore: p.leadScore,
+    status: p.status,
+    grundHeute: heuteDranGrund(p, now),
+    faellig: istFaellig(p.wiedervorlage, now),
+    hatVorbereitung: !!p.contactPrep,
+  }));
+
   // Letzte Such-Auftraege fuer die Fortschrittsanzeige (Runner aktualisiert sie).
   const requests = await prisma.searchRequest.findMany({
     orderBy: { createdAt: "desc" },
@@ -69,6 +102,15 @@ export default async function LeadsPage({
           subtitle="Akquise-Ziele aus dem Lead-Gen-Tool — anrufen und abhaken"
         />
       </Reveal>
+
+      {/* Heute dran: priorisierte Direkt-Liste ueber alle Branchen */}
+      {heuteTop.length > 0 && (
+        <Reveal delay={0.04}>
+          <div className="mb-8">
+            <HeuteDran items={heuteTop} />
+          </div>
+        </Reveal>
+      )}
 
       {/* Suche starten */}
       <Reveal delay={0.05}>
