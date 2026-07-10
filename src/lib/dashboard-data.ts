@@ -7,7 +7,7 @@ import { unstable_cache } from "next/cache";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { googleConfigured } from "@/lib/env";
-import { getGoogleClientForUser } from "@/lib/google/client";
+import { getGoogleClientForAccount } from "@/lib/google/client";
 import { listUpcomingEvents } from "@/lib/google/calendar";
 import { listRecentMessages } from "@/lib/google/gmail";
 import { syncLeadsFromMails } from "@/lib/leads";
@@ -19,82 +19,109 @@ import type { CalEvent, MailItem, DataView } from "@/lib/types";
 // loeschen) wird der jeweilige Eintrag sofort per revalidateTag geleert.
 const CACHE_SECONDS = 20;
 
-async function fetchEventsCached(userId: string) {
+// Zwischenspeicherung erfolgt jetzt PRO KONTO (GoogleAccount.id), da ein Nutzer
+// mehrere Konten haben kann. Die Cache-Tags heissen entsprechend
+// `calendar-<accountId>` bzw. `mail-<accountId>` (siehe kalender/actions.ts).
+async function fetchEventsCached(accountId: string) {
   return unstable_cache(
     async () => {
-      const client = await getGoogleClientForUser(userId);
+      const client = await getGoogleClientForAccount(accountId);
       if (!client) return [] as CalEvent[];
       return listUpcomingEvents(client, 30);
     },
-    ["calendar-events", userId],
-    { revalidate: CACHE_SECONDS, tags: [`calendar-${userId}`] }
+    ["calendar-events", accountId],
+    { revalidate: CACHE_SECONDS, tags: [`calendar-${accountId}`] }
   )();
 }
 
-async function fetchMailsCached(userId: string) {
+async function fetchMailsCached(accountId: string) {
   return unstable_cache(
     async () => {
-      const client = await getGoogleClientForUser(userId);
+      const client = await getGoogleClientForAccount(accountId);
       if (!client) return [] as MailItem[];
       return listRecentMessages(client, 20);
     },
-    ["gmail-messages", userId],
-    { revalidate: CACHE_SECONDS, tags: [`mail-${userId}`] }
+    ["gmail-messages", accountId],
+    { revalidate: CACHE_SECONDS, tags: [`mail-${accountId}`] }
   )();
 }
 
-// Alle Dashboard-Nutzer, jeweils mit Info ob + welches Google-Konto verbunden ist.
+// Ein einzelnes verbundenes Google-Konto, angereichert um den Besitzer-Nutzer
+// (fuer Einfaerbung + Anzeige). Ein Nutzer kann mehrere solcher Konten haben.
+type AccountRow = {
+  accountId: string;
+  userId: string;
+  username: string;
+  name: string;
+  email: string;
+};
+
+// Alle Dashboard-Nutzer inkl. ihrer (0..n) verbundenen Google-Konten.
 // Mit "cache" zwischengespeichert, da Kalender- und Mail-Abfrage das auf
 // derselben Seite (z. B. Startseite) sonst doppelt abfragen wuerden.
-const teamAccounts = cache(async function teamAccounts() {
+const teamData = cache(async function teamData() {
   const users = await prisma.user.findMany({
     select: {
       id: true,
       username: true,
       name: true,
-      googleAccount: { select: { email: true } },
+      googleAccounts: {
+        select: { id: true, email: true },
+        orderBy: { createdAt: "asc" },
+      },
     },
     orderBy: { username: "asc" },
   });
-  return users.map((u) => ({
+
+  // Team-Uebersicht PRO PERSON (fuer Banner/Filter): verbunden = >=1 Konto.
+  const members = users.map((u) => ({
     userId: u.id,
     username: u.username,
     name: u.name,
-    email: u.googleAccount?.email ?? "",
-    connected: Boolean(u.googleAccount),
+    connected: u.googleAccounts.length > 0,
   }));
+
+  // Flache Liste ALLER verbundenen Konten (fuer die eigentlichen Abrufe).
+  const accountRows: AccountRow[] = users.flatMap((u) =>
+    u.googleAccounts.map((a) => ({
+      accountId: a.id,
+      userId: u.id,
+      username: u.username,
+      name: u.name,
+      email: a.email,
+    }))
+  );
+
+  return { members, accountRows };
 });
 
-// Kalender-Ansicht: Termine aus allen verbundenen Konten zusammengefuehrt
+// Kalender-Ansicht: Termine aus ALLEN verbundenen Konten zusammengefuehrt.
+// Einfaerbung bleibt pro Person; hat eine Person mehrere Konten, fliessen die
+// Termine all ihrer Konten ein (gleiche Farbe).
 export async function getCalendarView(): Promise<DataView<CalEvent[]>> {
-  const team = await teamAccounts();
+  const { members, accountRows } = await teamData();
   const session = await auth();
   const ownUsername = session?.user?.username;
-  const selfConnected = team.some((t) => t.username === ownUsername && t.connected);
-  const accounts = team.map((t) => ({
-    userId: t.userId,
-    username: t.username,
-    name: t.name,
-    connected: t.connected,
-  }));
+  const selfConnected = members.some((m) => m.username === ownUsername && m.connected);
+  const accounts = members;
 
   if (!googleConfigured) {
     return { configured: false, connected: false, selfConnected, demo: true, data: [], accounts };
   }
-  const connectedMembers = team.filter((t) => t.connected);
-  if (connectedMembers.length === 0) {
+  if (accountRows.length === 0) {
     return { configured: true, connected: false, selfConnected, demo: true, data: [], accounts };
   }
 
   const perAccount = await Promise.all(
-    connectedMembers.map(async (member) => {
+    accountRows.map(async (acc) => {
       try {
-        const events = await fetchEventsCached(member.userId);
+        const events = await fetchEventsCached(acc.accountId);
         return events.map((e) => ({
           ...e,
-          ownerUserId: member.userId,
-          ownerUsername: member.username,
-          ownerName: member.name,
+          ownerUserId: acc.userId,
+          ownerUsername: acc.username,
+          ownerName: acc.name,
+          ownerAccountId: acc.accountId,
         }));
       } catch {
         // Einzelnes Konto mit Problem (z. B. Token abgelaufen) ignorieren,
@@ -121,40 +148,43 @@ export async function getMailView(): Promise<DataView<MailItem[]>> {
 }
 
 async function loadMails(): Promise<DataView<MailItem[]>> {
-  const team = await teamAccounts();
+  const { members, accountRows } = await teamData();
 
-  // Sichtbarer Ausschnitt: nur das eigene Konto + das gemeinsame info@-Konto
+  // Sichtbarer Ausschnitt: das EIGENE Postfach = ALLE Konten des eingeloggten
+  // Nutzers, plus das gemeinsame info@-Postfach (alle dortigen Konten).
   const session = await auth();
   const ownUsername = session?.user?.username;
-  const selfConnected = team.some((t) => t.username === ownUsername && t.connected);
-  const visibleTeam = team.filter(
-    (t) => t.username === ownUsername || t.username === "info"
+  const selfConnected = members.some((m) => m.username === ownUsername && m.connected);
+
+  // Team-Uebersicht fuers Filter-UI (pro Person): eigene Person + info.
+  const accounts = members.filter(
+    (m) => m.username === ownUsername || m.username === "info"
   );
-  const accounts = visibleTeam.map((t) => ({
-    userId: t.userId,
-    username: t.username,
-    name: t.name,
-    connected: t.connected,
-  }));
+
+  // Die tatsaechlich abzurufenden Konten (pro Konto): alle Konten der eigenen
+  // Person + alle Konten des info-Nutzers.
+  const visibleAccounts = accountRows.filter(
+    (a) => a.username === ownUsername || a.username === "info"
+  );
 
   if (!googleConfigured) {
     return { configured: false, connected: false, selfConnected, demo: true, data: [], accounts };
   }
-  const connectedMembers = visibleTeam.filter((t) => t.connected);
-  if (connectedMembers.length === 0) {
+  if (visibleAccounts.length === 0) {
     return { configured: true, connected: false, selfConnected, demo: true, data: [], accounts };
   }
 
   const perAccount = await Promise.all(
-    connectedMembers.map(async (member) => {
+    visibleAccounts.map(async (acc) => {
       try {
-        const mails = await fetchMailsCached(member.userId);
+        const mails = await fetchMailsCached(acc.accountId);
         return mails.map((m) => ({
           ...m,
-          ownerUserId: member.userId,
-          ownerUsername: member.username,
-          ownerName: member.name,
-          ownerEmail: member.email,
+          ownerUserId: acc.userId,
+          ownerUsername: acc.username,
+          ownerName: acc.name,
+          ownerEmail: acc.email,
+          ownerAccountId: acc.accountId,
         }));
       } catch {
         return [];

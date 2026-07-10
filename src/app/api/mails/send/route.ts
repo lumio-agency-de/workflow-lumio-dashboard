@@ -3,7 +3,11 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { getGoogleClientForUser } from "@/lib/google/client";
+import { prisma } from "@/lib/prisma";
+import {
+  getGoogleClientForAccount,
+  getGoogleClientForUser,
+} from "@/lib/google/client";
 import { sendMailWithAttachment, getMessageMeta } from "@/lib/google/gmail";
 
 export async function POST(request: Request) {
@@ -20,6 +24,9 @@ export async function POST(request: Request) {
     text?: string;
     cc?: string;
     replyToMessageId?: string;
+    // Konkretes Postfach (GoogleAccount.id), aus dem gesendet werden soll –
+    // z. B. das Konto, in dem die beantwortete Mail einging.
+    accountId?: string;
   };
   try {
     body = await request.json();
@@ -32,13 +39,33 @@ export async function POST(request: Request) {
   const text = String(body.text ?? "");
   const cc = String(body.cc ?? "").trim();
   const replyToMessageId = String(body.replyToMessageId ?? "").trim();
+  const accountId = String(body.accountId ?? "").trim();
 
   if (!to) {
     return NextResponse.json({ ok: false, error: "Empfänger fehlt" }, { status: 400 });
   }
 
-  // OAuth-Client des angemeldeten Nutzers holen
-  const client = await getGoogleClientForUser(session.user.id);
+  // Passendes Postfach waehlen: Ist eine Konto-ID angegeben (z. B. das Postfach,
+  // in dem die beantwortete Mail einging), MUSS ueber genau dieses Konto
+  // gesendet werden – die Threading-IDs sind nur dort gueltig. Erlaubt sind nur
+  // eigene Konten oder das gemeinsame info@-Postfach (die auf der Mail-Seite
+  // sichtbaren Postfaecher). Sonst: primaeres Konto des angemeldeten Nutzers.
+  let client: Awaited<ReturnType<typeof getGoogleClientForAccount>> = null;
+  if (accountId) {
+    const acc = await prisma.googleAccount.findUnique({
+      where: { id: accountId },
+      select: { userId: true, user: { select: { username: true } } },
+    });
+    const allowed =
+      acc && (acc.userId === session.user.id || acc.user.username === "info");
+    if (allowed) {
+      client = await getGoogleClientForAccount(accountId);
+    }
+  }
+  if (!client) {
+    // Fallback: primaeres Konto des angemeldeten Nutzers
+    client = await getGoogleClientForUser(session.user.id);
+  }
   if (!client) {
     return NextResponse.json(
       { ok: false, error: "Dein Google-Konto ist nicht verbunden" },
