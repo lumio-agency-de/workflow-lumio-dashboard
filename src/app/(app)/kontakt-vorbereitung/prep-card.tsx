@@ -2,8 +2,19 @@
 
 // Eine Firma in der Kontakt-Vorbereitung: Analyse (Website/Maengel/Leistungen)
 // + Kontaktdaten + Planung des Erstkontakts. Speichert per Server-Action.
-import { useState } from "react";
-import { Phone, Mail, Trash2, Save, Plus, Globe, Sparkles } from "lucide-react";
+import { useRef, useState } from "react";
+import {
+  Phone,
+  Mail,
+  Trash2,
+  Save,
+  Plus,
+  Globe,
+  Sparkles,
+  Copy,
+  Check,
+  X,
+} from "lucide-react";
 import { updatePrep, deletePrep } from "./actions";
 
 export type PrepData = {
@@ -46,6 +57,49 @@ export default function PrepCard({
     : [];
   const [selected, setSelected] = useState<string[]>(initial);
   const [custom, setCustom] = useState("");
+
+  // KI-Erstkontakt-Mail – nur auf Knopfdruck.
+  const formRef = useRef<HTMLFormElement>(null);
+  const [mail, setMail] = useState<string | null>(null);
+  const [mailLoading, setMailLoading] = useState(false);
+  const [mailError, setMailError] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  async function draftMail() {
+    setMailLoading(true);
+    setMailError(false);
+    setCopied(false);
+    // Aktuelle Formularwerte lesen (auch ungespeicherte Aenderungen).
+    const fd = formRef.current ? new FormData(formRef.current) : new FormData();
+    try {
+      const res = await fetch("/api/akquise/erstkontakt-mail", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firma: String(fd.get("firma") ?? prep.firma),
+          website: String(fd.get("website") ?? prep.website),
+          websiteMaengel: String(fd.get("websiteMaengel") ?? prep.websiteMaengel),
+          empfohleneLeistungen: selected.join(", "),
+          ansprechpartner: String(fd.get("ansprechpartner") ?? prep.ansprechpartner),
+        }),
+      });
+      if (!res.ok) throw new Error("Fehler");
+      const data = (await res.json()) as { suggestion: string };
+      setMail(data.suggestion);
+    } catch {
+      setMailError(true);
+    } finally {
+      setMailLoading(false);
+    }
+  }
+
+  function copyMail() {
+    if (!mail) return;
+    navigator.clipboard?.writeText(mail).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }
 
   const toggle = (name: string) =>
     setSelected((s) => (s.includes(name) ? s.filter((x) => x !== name) : [...s, name]));
@@ -112,7 +166,7 @@ export default function PrepCard({
         </p>
       )}
 
-      <form action={updatePrep} className="flex flex-col gap-4">
+      <form ref={formRef} action={updatePrep} className="flex flex-col gap-4">
         <input type="hidden" name="id" value={prep.id} />
         {/* Ausgewaehlte Leistungen als versteckter, kommagetrennter Wert */}
         <input type="hidden" name="empfohleneLeistungen" value={selected.join(", ")} />
@@ -265,14 +319,65 @@ export default function PrepCard({
         </label>
 
         {/* Aktionen */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="submit"
             className="glow-accent flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-[#06121e] transition hover:bg-accent-2"
           >
             <Save className="h-4 w-4" /> Speichern
           </button>
+          <button
+            type="button"
+            onClick={draftMail}
+            disabled={mailLoading}
+            className="flex items-center gap-2 rounded-xl border border-line bg-white/5 px-4 py-2 text-sm font-semibold text-ink transition hover:border-accent hover:text-accent disabled:opacity-50"
+          >
+            <Sparkles className="h-4 w-4" />
+            {mailLoading ? "Entwirft …" : "KI-Erstkontakt-Mail"}
+          </button>
         </div>
+
+        {mailError && (
+          <p className="text-xs text-rose-400">
+            Mail konnte nicht erstellt werden. Bitte erneut versuchen.
+          </p>
+        )}
+
+        {mail && (
+          <div className="flex flex-col gap-2 rounded-xl border border-accent/25 bg-accent/5 p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs uppercase tracking-wide text-accent">
+                Erstkontakt-Mail
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={copyMail}
+                  className="inline-flex items-center gap-1 rounded-lg border border-line bg-white/5 px-2 py-1 text-xs text-muted transition-colors hover:text-ink"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="h-3 w-3 text-emerald-300" /> Kopiert
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3 w-3" /> Kopieren
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMail(null)}
+                  aria-label="Schließen"
+                  className="inline-flex items-center rounded-lg border border-line bg-white/5 px-2 py-1 text-xs text-muted transition-colors hover:text-ink"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+            <p className="whitespace-pre-wrap text-sm text-ink">{mail}</p>
+          </div>
+        )}
       </form>
 
       {/* Loeschen (eigenes Formular, damit es nicht das Speichern ausloest) */}

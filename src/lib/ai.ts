@@ -38,6 +38,138 @@ async function askClaude(system: string, user: string): Promise<string> {
 }
 
 // ---------------------------------------------------------------------------
+// 3) Erstkontakt-Mail fuer die Kontakt-Vorbereitung (Akquise) entwerfen
+// ---------------------------------------------------------------------------
+export type ErstkontaktInput = {
+  firma: string;
+  website?: string;
+  websiteMaengel?: string;
+  empfohleneLeistungen?: string;
+  ansprechpartner?: string;
+};
+
+export async function draftErstkontaktMail(
+  input: ErstkontaktInput
+): Promise<string> {
+  const anrede = input.ansprechpartner?.trim()
+    ? `Hallo ${input.ansprechpartner.split(" ")[0]},`
+    : "Guten Tag,";
+  const leistung =
+    input.empfohleneLeistungen?.split(",")[0]?.trim() || "eine moderne Website";
+
+  // Fallback-Vorlage ohne KI (funktioniert immer)
+  const vorlage = `${anrede}
+
+ich bin auf ${input.firma} aufmerksam geworden und habe mir Ihren Auftritt angesehen.${
+    input.websiteMaengel?.trim()
+      ? ` Dabei ist mir aufgefallen: ${input.websiteMaengel.trim()}.`
+      : ""
+  } Genau da können wir von Lumio helfen – z. B. mit ${leistung}.
+
+Hätten Sie diese Woche kurz Zeit für einen unverbindlichen Austausch? Ich zeige Ihnen gerne konkret, was sich verbessern lässt.
+
+Beste Grüße
+[Dein Name] · Lumio`;
+
+  if (!anthropicConfigured) return vorlage;
+
+  try {
+    const text = await askClaude(
+      "Du bist die freundliche, professionelle Assistenz der Webagentur Lumio (Websites & Design). Schreibe eine kurze, persönliche Erstkontakt-Mail auf Deutsch (per Sie). Beziehe dich konkret auf den genannten Website-Mangel und verbinde ihn mit einer passenden Lumio-Leistung. Freundlich, nicht aufdringlich, mit einer klaren, niederschwelligen Handlungsaufforderung (kurzes Gespräch). Maximal ~120 Wörter. Keine Platzhalter in eckigen Klammern außer '[Dein Name]' in der Signatur. Gib nur den Mail-Text zurück, keinen Betreff.",
+      `Firma: ${input.firma}
+Website: ${input.website || "unbekannt"}
+Mängel an der Website: ${input.websiteMaengel?.trim() || "unbekannt"}
+Passende Lumio-Leistungen: ${input.empfohleneLeistungen?.trim() || "moderne Website, SEO, Design"}
+Ansprechpartner: ${input.ansprechpartner?.trim() || "unbekannt"}
+
+Schreibe die Erstkontakt-Mail.`
+    );
+    return text || vorlage;
+  } catch {
+    return vorlage;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 4) Follow-up-Vorschlag fuer einen Prospect (naechster Schritt) erzeugen
+// ---------------------------------------------------------------------------
+export type NextStepInput = {
+  firma: string;
+  status: string;
+  reaktion?: string;
+  notiz?: string;
+};
+
+export type NextStepResult = {
+  schritt: string; // kurze Handlungsempfehlung
+  text: string; // fertiger Kurztext (Gespraechseinstieg / Mail-Zeilen)
+  wiedervorlageInTagen: number | null; // Vorschlag fuer die Wiedervorlage
+};
+
+export async function suggestNextStep(
+  input: NextStepInput
+): Promise<NextStepResult> {
+  // Fallback ohne KI: simple, sinnvolle Regel je Status
+  const fallback: NextStepResult = (() => {
+    switch (input.status) {
+      case "interesse":
+        return {
+          schritt: "Nachfassen und Termin vorschlagen",
+          text: `Kurz bei ${input.firma} nachfassen, konkreten Termin für ein Gespräch anbieten und den Mehrwert (moderne Website) betonen.`,
+          wiedervorlageInTagen: 3,
+        };
+      case "kontaktiert":
+        return {
+          schritt: "Freundlich nachhaken",
+          text: `Freundlich bei ${input.firma} nachhaken, ob die Nachricht angekommen ist, und einen kurzen Austausch anbieten.`,
+          wiedervorlageInTagen: 5,
+        };
+      case "termin":
+        return {
+          schritt: "Termin bestätigen / vorbereiten",
+          text: `Termin mit ${input.firma} bestätigen und Unterlagen bzw. Ideen vorbereiten.`,
+          wiedervorlageInTagen: 2,
+        };
+      default:
+        return {
+          schritt: "Erstkontakt aufnehmen",
+          text: `${input.firma} erstmals kontaktieren (Anruf oder Mail) und den Aufhänger platzieren.`,
+          wiedervorlageInTagen: 7,
+        };
+    }
+  })();
+
+  if (!anthropicConfigured) return fallback;
+
+  try {
+    const antwort = await askClaude(
+      "Du bist Vertriebs-Assistenz der Webagentur Lumio. Schlage den nächsten sinnvollen Akquise-Schritt für einen Lead vor. Antworte AUSSCHLIESSLICH mit gültigem JSON, ohne Erklärtext, in genau diesem Format: {\"schritt\":\"kurze Handlungsempfehlung\",\"text\":\"1-3 Sätze fertiger Text auf Deutsch, per Sie\",\"wiedervorlageInTagen\":3}. wiedervorlageInTagen ist eine Ganzzahl (Tage bis zur nächsten Wiedervorlage) oder null.",
+      `Firma: ${input.firma}
+Aktueller Status: ${input.status}
+Bisherige Reaktion: ${input.reaktion?.trim() || "keine"}
+Notiz: ${input.notiz?.trim() || "keine"}
+
+Was ist der nächste sinnvolle Schritt?`
+    );
+
+    const jsonMatch = antwort.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return fallback;
+    const parsed = JSON.parse(jsonMatch[0]) as Partial<NextStepResult>;
+    const tage =
+      parsed.wiedervorlageInTagen == null
+        ? null
+        : Math.max(0, Math.round(Number(parsed.wiedervorlageInTagen)));
+    return {
+      schritt: String(parsed.schritt || fallback.schritt).trim(),
+      text: String(parsed.text || fallback.text).trim(),
+      wiedervorlageInTagen: Number.isFinite(tage as number) ? tage : null,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // 1) Passende Pakete fuer eine Anfrage auswaehlen
 // ---------------------------------------------------------------------------
 export async function pickOfferItems(
@@ -130,5 +262,56 @@ ${senderName} · Lumio`;
     return text || vorlage;
   } catch {
     return vorlage;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 5) KI-Tagesbriefing fuer die Uebersicht: fasst die wichtigsten offenen
+//    Punkte des Tages in 2-3 Saetzen zusammen. Fallback ohne KI moeglich.
+// ---------------------------------------------------------------------------
+export type BriefingSignals = {
+  termineHeute: number;
+  ungeleseneMails: number;
+  neueAnfragen: number;
+  faelligeWiedervorlagen: number;
+  ueberfaelligeRechnungen: number;
+};
+
+export async function generateTagesbriefing(
+  s: BriefingSignals,
+  firstName: string
+): Promise<string> {
+  // Deterministische Kurzfassung (Fallback ohne KI, priorisiert)
+  const teile: string[] = [];
+  if (s.ueberfaelligeRechnungen)
+    teile.push(`${s.ueberfaelligeRechnungen} überfällige Rechnung(en)`);
+  if (s.faelligeWiedervorlagen)
+    teile.push(`${s.faelligeWiedervorlagen} fällige Wiedervorlage(n)`);
+  if (s.neueAnfragen) teile.push(`${s.neueAnfragen} neue Anfrage(n)`);
+  if (s.termineHeute) teile.push(`${s.termineHeute} Termin(e) heute`);
+  if (s.ungeleseneMails) teile.push(`${s.ungeleseneMails} ungelesene Mail(s)`);
+
+  const fallback = teile.length
+    ? `Heute wichtig: ${teile.join(", ")}.`
+    : "Alles ruhig – keine dringenden Punkte offen. Guter Moment für Akquise.";
+
+  // Ohne offene Punkte oder ohne API-Key: keinen KI-Aufruf machen.
+  if (!anthropicConfigured || teile.length === 0) return fallback;
+
+  try {
+    const text = await askClaude(
+      `Du bist die Assistenz im Dashboard der Webagentur Lumio. Fasse ${firstName} den Tag in 2-3 kurzen, motivierenden Sätzen auf Deutsch zusammen (per Du). Priorisiere: überfällige Rechnungen und fällige Wiedervorlagen zuerst, dann neue Anfragen, dann Termine und Mails. Nenne konkrete Zahlen, aber nur was wirklich anliegt (Nullwerte weglassen). Keine Aufzählungszeichen, keine Anrede-Zeile, kein Betreff – nur der Fließtext.`,
+      `Offene Punkte heute:
+- Überfällige Rechnungen: ${s.ueberfaelligeRechnungen}
+- Fällige Wiedervorlagen: ${s.faelligeWiedervorlagen}
+- Neue Anfragen: ${s.neueAnfragen}
+- Termine heute: ${s.termineHeute}
+- Ungelesene Mails: ${s.ungeleseneMails}
+
+Schreibe das kurze Tagesbriefing.`
+    );
+    return text || fallback;
+  } catch {
+    return fallback;
   }
 }
