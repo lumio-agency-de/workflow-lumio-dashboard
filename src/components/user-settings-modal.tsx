@@ -15,6 +15,7 @@ import {
   KeyRound,
 } from "lucide-react";
 import { updateProfile, disconnectGoogleAccount } from "@/app/(app)/settings-actions";
+import PasswordChangeForm from "@/components/password-change-form";
 
 export type ConnectedAccount = { id: string; email: string };
 
@@ -189,10 +190,7 @@ export default function UserSettingsModal({
             <KeyRound className="h-4 w-4 text-accent" />
             Passwort ändern
           </h3>
-          <div className="rounded-xl border border-dashed border-line bg-white/5 p-3 text-sm text-muted">
-            Wird über den Passwort-Bereich verwaltet.
-            {/* TODO: hier wird <PasswordChangeForm/> eingebunden */}
-          </div>
+          <PasswordChangeForm onDone={onClose} />
         </section>
       </div>
     </div>
