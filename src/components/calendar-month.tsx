@@ -55,7 +55,7 @@ export default function CalendarMonth({ events }: { events: CalEvent[] }) {
   };
 
   return (
-    <div className="glass rounded-2xl p-5">
+    <div className="glass rounded-2xl p-3 sm:p-5">
       {/* Kopf mit Monat + Navigation */}
       <div className="mb-4 flex items-center justify-between">
         <h2 className="font-display text-lg font-semibold">
@@ -108,7 +108,7 @@ export default function CalendarMonth({ events }: { events: CalEvent[] }) {
               <div
                 key={i}
                 className={
-                  "min-h-20 rounded-lg border p-1.5 text-left " +
+                  "min-h-16 rounded-lg border p-1 text-left sm:min-h-24 sm:p-1.5 " +
                   (inMonth ? "border-line" : "border-transparent opacity-40") +
                   (isToday ? " bg-accent/10 ring-1 ring-accent/40" : "")
                 }
