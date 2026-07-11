@@ -13,7 +13,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, LogOut, ChevronDown, Settings } from "lucide-react";
 import { logout } from "@/app/(app)/auth-actions";
 import { NAV, isNavGroup, type NavItem, type NavGroup } from "@/components/nav-config";
-import ChatUnreadBadge from "@/components/chat-unread-badge";
 import UserSettingsModal, { type ConnectedAccount } from "@/components/user-settings-modal";
 
 export default function DashboardMobileNav({
@@ -204,11 +203,6 @@ function NavLink({
     >
       <Icon className="h-[18px] w-[18px]" />
       <span>{item.label}</span>
-      {item.href === "/chat" && (
-        <span className="ml-auto">
-          <ChatUnreadBadge />
-        </span>
-      )}
     </Link>
   );
 }

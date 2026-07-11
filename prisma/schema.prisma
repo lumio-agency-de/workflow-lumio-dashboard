@@ -25,9 +25,6 @@ model User {
   createdAt    DateTime @default(now())      // Erstellzeitpunkt
 
   googleAccounts GoogleAccount[]              // verbundene Google-Workspace-Konten (0..n pro Nutzer)
-
-  sentChatMessages     ChatMessage[] @relation("SentChatMessages")     // vom Nutzer gesendete Chat-Nachrichten
-  receivedChatMessages ChatMessage[] @relation("ReceivedChatMessages") // an den Nutzer gerichtete DM-Nachrichten
 }
 
 // Verbundenes Google-Konto fuer Gmail + Kalender (OAuth-Tokens).
@@ -288,22 +285,6 @@ model InvoiceItem {
   createdAt DateTime @default(now())
 
   @@index([invoiceId])
-}
-
-// Interner Chat zwischen den Dashboard-Nutzern.
-// Bildet sowohl den gemeinsamen Team-Channel (scope="team") als auch
-// 1:1-Direktnachrichten (scope="dm") in einer Tabelle ab.
-model ChatMessage {
-  id          String   @id @default(cuid())
-  senderId    String                          // wer die Nachricht geschrieben hat
-  sender      User     @relation("SentChatMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  scope       String                          // "team" (Channel) oder "dm" (Direktnachricht)
-  recipientId String?                         // nur bei scope="dm" gesetzt: Empfaenger
-  recipient   User?    @relation("ReceivedChatMessages", fields: [recipientId], references: [id], onDelete: Cascade)
-  body        String                          // der Nachrichtentext
-  createdAt   DateTime @default(now())        // Sendezeitpunkt
-
-  @@index([scope, recipientId, senderId, createdAt])
 }
 
 // Kontakt-Vorbereitung (Bereich Akquise): pro Zielunternehmen eine Analyse +
