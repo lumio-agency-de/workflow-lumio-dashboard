@@ -6,6 +6,7 @@ import { google } from "googleapis";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { createOAuthClient } from "@/lib/google/client";
+import { isSafeRelativePath } from "@/lib/url";
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -71,7 +72,7 @@ export async function GET(request: Request) {
     // Zurueck dorthin, wo der Connect gestartet wurde (via OAuth-"state"),
     // sonst zur Kalender-Seite. Nur relative Pfade zulassen.
     const stateParam = url.searchParams.get("state") ?? "";
-    const target = stateParam.startsWith("/") ? stateParam : "/kalender";
+    const target = isSafeRelativePath(stateParam) ? stateParam : "/kalender";
     const dest = new URL(target, request.url);
     dest.searchParams.set("google", "verbunden");
     return NextResponse.redirect(dest);

@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { googleConfigured } from "@/lib/env";
 import { createOAuthClient, GOOGLE_SCOPES } from "@/lib/google/client";
+import { isSafeRelativePath } from "@/lib/url";
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -22,7 +23,9 @@ export async function GET(request: Request) {
   // Connect aus den Nutzer-Einstellungen gestartet wird. Wird als OAuth-"state"
   // durchgereicht und in der Callback-Route ausgewertet.
   const redirectParam = new URL(request.url).searchParams.get("redirect") ?? "";
-  const state = redirectParam.startsWith("/") ? redirectParam : "";
+  // Nur echte, eigene relative Pfade zulassen. "//host" oder "/\\host" sind
+  // protokoll-relative URLs (Open-Redirect) und werden verworfen.
+  const state = isSafeRelativePath(redirectParam) ? redirectParam : "";
 
   const client = createOAuthClient();
   const url = client.generateAuthUrl({

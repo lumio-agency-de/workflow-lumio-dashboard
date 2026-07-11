@@ -179,6 +179,8 @@ function OfferDocument({
         <View style={styles.header}>
           <View style={styles.logoBox}>
             {logo ? (
+              // @react-pdf/renderer Image (kein HTML-img) – alt-Regel greift hier nicht
+              // eslint-disable-next-line jsx-a11y/alt-text
               <Image style={styles.logoImage} src={logo.data} />
             ) : (
               <Text style={styles.logoPlaceholder}>

@@ -29,8 +29,10 @@ export default function DashboardMobileNav({
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname.startsWith(href);
 
-  // Bei Seitenwechsel das Drawer schliessen
+  // Bei Seitenwechsel das Drawer schliessen. Reaktion auf externe Navigation
+  // (pathname-Aenderung) -> gezielte Regel-Ausnahme, Verhalten ist gewollt.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMenuOpen(false);
   }, [pathname]);
 

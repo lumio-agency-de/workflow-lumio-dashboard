@@ -5,9 +5,18 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
+// Nur eingeloggte Nutzer. Server-Actions sind offene POST-Endpunkte – ohne
+// diesen Wachposten koennte sie jeder unangemeldet aufrufen.
+async function requireSession() {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Nicht angemeldet");
+  return session;
+}
+
 // Eine Firma aus der Lead-Liste (Prospect) in die Kontakt-Vorbereitung uebernehmen.
 // Kopiert Stammdaten; verknuepft ueber prospectId (1:1). Doppelte werden vermieden.
 export async function addFromProspect(formData: FormData) {
+  const session = await requireSession();
   const prospectId = String(formData.get("prospectId") ?? "");
   if (!prospectId) return;
 
@@ -17,8 +26,6 @@ export async function addFromProspect(formData: FormData) {
 
   const p = await prisma.prospect.findUnique({ where: { id: prospectId } });
   if (!p) return;
-
-  const session = await auth();
 
   await prisma.contactPrep.create({
     data: {
@@ -41,10 +48,9 @@ export async function addFromProspect(formData: FormData) {
 
 // Eine Firma manuell anlegen (ohne Prospect, z. B. Empfehlung).
 export async function addManual(formData: FormData) {
+  const session = await requireSession();
   const firma = String(formData.get("firma") ?? "").trim();
   if (!firma) return;
-
-  const session = await auth();
 
   await prisma.contactPrep.create({
     data: {
@@ -61,6 +67,7 @@ export async function addManual(formData: FormData) {
 
 // Eine Vorbereitung speichern (alle bearbeitbaren Felder).
 export async function updatePrep(formData: FormData) {
+  await requireSession();
   const id = String(formData.get("id") ?? "");
   if (!id) return;
 
@@ -86,6 +93,7 @@ export async function updatePrep(formData: FormData) {
 
 // Eine Vorbereitung loeschen.
 export async function deletePrep(formData: FormData) {
+  await requireSession();
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   await prisma.contactPrep.delete({ where: { id } });

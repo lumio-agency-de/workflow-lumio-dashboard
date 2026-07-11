@@ -31,9 +31,12 @@ async function resolveAccountId(
   explicitAccountId: string,
   fallbackUserId: string
 ): Promise<string> {
-  if (explicitAccountId) return explicitAccountId;
+  // IMMER zuerst die Anmeldung pruefen. Server-Actions sind offene
+  // POST-Endpunkte: ohne diesen Check koennte ein Unangemeldeter durch Angabe
+  // einer beliebigen ownerAccountId fremde Google-Kalender manipulieren.
   const session = await auth();
   if (!session?.user?.id) throw new Error("Nicht angemeldet");
+  if (explicitAccountId) return explicitAccountId;
   const userId = fallbackUserId || session.user.id;
   const accountId = await getPrimaryAccountId(userId);
   if (!accountId) throw new Error("Kein Google-Konto verbunden");
