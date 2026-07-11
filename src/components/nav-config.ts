@@ -8,7 +8,6 @@ import {
   FileText,
   Phone,
   ListChecks,
-  MessageSquare,
   Target,
   Radar,
   ClipboardList,
@@ -45,7 +44,6 @@ export const NAV: NavEntry[] = [
   { href: "/kalender", label: "Kalender", icon: Calendar },
   { href: "/mails", label: "E-Mails", icon: Mail },
   { href: "/telefon", label: "Telefon", icon: Phone },
-  { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/auswertung", label: "Auswertung", icon: BarChart3 },
   {
     label: "Akquise",
