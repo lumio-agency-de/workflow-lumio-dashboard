@@ -62,7 +62,10 @@ export default async function AuswertungPage() {
   const events = calView?.data ?? [];
   const capacity = computeCapacity(events, offeneAuftraege.length);
 
-  // Kommende Termine (die naechsten, bereits nach Startzeit sortiert)
+  // Kommende Termine (die naechsten, bereits nach Startzeit sortiert).
+  // Server-Component: der Zeitpunkt wird pro Request einmal ausgewertet und ist
+  // damit stabil fuer diesen Render -> die Purity-Regel ist hier ein Fehlalarm.
+  // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
   const kommendeTermine = events
     .filter((e) => new Date(e.start).getTime() >= now)

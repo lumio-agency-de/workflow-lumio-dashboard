@@ -39,9 +39,12 @@ export default function UserSettingsModal({
   const [savingName, startSaveName] = useTransition();
   const [, startDisconnect] = useTransition();
 
-  // Name-Feld beim Oeffnen mit dem aktuellen Namen vorbelegen
+  // Name-Feld beim Oeffnen mit dem aktuellen Namen vorbelegen. Bewusstes
+  // Synchronisieren von Prop -> lokalem Formularzustand beim Oeffnen des Modals;
+  // korrekt, daher der gezielte Regel-Ausnahme-Kommentar.
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setName(userName);
       setSavedName(false);
     }
@@ -153,7 +156,7 @@ export default function UserSettingsModal({
 
           {accounts.length === 0 ? (
             <p className="rounded-xl border border-line bg-white/5 p-3 text-sm text-muted">
-              Noch kein Google-Konto verbunden. Über „Konto hinzufügen" verbindest
+              Noch kein Google-Konto verbunden. Über „Konto hinzufügen&ldquo; verbindest
               du dein Postfach (Gmail &amp; Kalender).
             </p>
           ) : (

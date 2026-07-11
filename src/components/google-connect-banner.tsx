@@ -71,7 +71,7 @@ export default function GoogleConnectBanner({
         {missing.length > 0 && (
           <div className="text-xs text-muted">
             Fehlt noch: {missing.map((m) => m.name).join(", ")} — jeweils im eigenen
-            Nutzer einloggen und „Google verbinden" klicken.
+            Nutzer einloggen und „Google verbinden&ldquo; klicken.
           </div>
         )}
       </div>
