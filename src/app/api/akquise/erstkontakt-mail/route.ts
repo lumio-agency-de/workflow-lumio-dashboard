@@ -4,7 +4,7 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { anthropicConfigured } from "@/lib/env";
+import { aiConfigured } from "@/lib/env";
 import { draftErstkontaktMail } from "@/lib/ai";
 
 export async function POST(request: Request) {
@@ -34,6 +34,6 @@ export async function POST(request: Request) {
   return NextResponse.json({
     subject: mail.subject,
     body: mail.body,
-    demo: !anthropicConfigured,
+    demo: !aiConfigured,
   });
 }

@@ -1,6 +1,8 @@
-// KI-Helfer (Anthropic/Claude) fuer den Anfragen-Workflow.
-// Beide Funktionen haben einen Fallback ohne API-Key, damit alles immer funktioniert.
-import { anthropicConfigured } from "@/lib/env";
+// KI-Helfer fuer den Anfragen-/Akquise-Workflow.
+// Anbieter-unabhaengig: bevorzugt das kostenlose Google Gemini (GEMINI_API_KEY),
+// faellt sonst auf Anthropic/Claude (ANTHROPIC_API_KEY) zurueck. Ohne jeden Key
+// nutzen alle Funktionen ihre Vorlage – so laeuft immer alles.
+import { aiConfigured, geminiConfigured, anthropicConfigured } from "@/lib/env";
 import { formatEuro, formatDate } from "@/lib/format";
 import { brancheLabel } from "@/lib/akquise";
 
@@ -21,8 +23,34 @@ type OfferInfo = {
   items: { label: string; quantity: number; unitPrice: number; lineTotal: number }[];
 };
 
-// Gemeinsamer Anthropic-Aufruf (Text rein, Text raus)
-async function askClaude(system: string, user: string): Promise<string> {
+// Google Gemini via REST (kein SDK noetig). Kostenloses Kontingent im Google
+// AI Studio – Key als GEMINI_API_KEY, Modell optional ueber GEMINI_MODEL.
+async function askGemini(system: string, user: string): Promise<string> {
+  const model = process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: system }] },
+      contents: [{ role: "user", parts: [{ text: user }] }],
+      generationConfig: { maxOutputTokens: 900, temperature: 0.7 },
+    }),
+  });
+  if (!res.ok) throw new Error(`Gemini ${res.status}`);
+  const data = (await res.json()) as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+  };
+  const text = (data.candidates?.[0]?.content?.parts ?? [])
+    .map((p) => p.text ?? "")
+    .join("")
+    .trim();
+  if (!text) throw new Error("Gemini: leere Antwort");
+  return text;
+}
+
+// Anthropic/Claude-Aufruf (Alternative, kostenpflichtig).
+async function askAnthropic(system: string, user: string): Promise<string> {
   const Anthropic = (await import("@anthropic-ai/sdk")).default;
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const model = process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001";
@@ -36,6 +64,15 @@ async function askClaude(system: string, user: string): Promise<string> {
     .map((b) => (b.type === "text" ? b.text : ""))
     .join("\n")
     .trim();
+}
+
+// Anbieter-unabhaengiger KI-Aufruf (Text rein, Text raus). Gemini zuerst
+// (kostenlos), sonst Anthropic. Ohne Key wirft die Funktion – die Aufrufer
+// fangen das ab und liefern ihre Vorlage.
+export async function askKI(system: string, user: string): Promise<string> {
+  if (geminiConfigured) return askGemini(system, user);
+  if (anthropicConfigured) return askAnthropic(system, user);
+  throw new Error("Kein KI-Anbieter konfiguriert");
 }
 
 // ---------------------------------------------------------------------------
@@ -101,12 +138,12 @@ ${absender} · Lumio`;
 
   const vorlage: ErstkontaktMail = { subject, body: keineWebsite ? bodyB : bodyA };
 
-  if (!anthropicConfigured) return vorlage;
+  if (!aiConfigured) return vorlage;
 
   const branche = input.branche?.trim() ? brancheLabel(input.branche.trim()) : "";
 
   try {
-    const antwort = await askClaude(
+    const antwort = await askKI(
       `Du bist die Akquise-Assistenz der Webagentur Lumio (Websites & Design, Sitz Aidlingen). Schreibe eine kurze, persönliche Kalt-Erstkontakt-Mail auf Deutsch (per Sie) an einen kleinen oder mittelständischen Betrieb.
 
 FESTES GERÜST – halte dich exakt an diesen Aufbau und Ton:
@@ -204,10 +241,10 @@ export async function suggestNextStep(
     }
   })();
 
-  if (!anthropicConfigured) return fallback;
+  if (!aiConfigured) return fallback;
 
   try {
-    const antwort = await askClaude(
+    const antwort = await askKI(
       "Du bist Vertriebs-Assistenz der Webagentur Lumio. Schlage den nächsten sinnvollen Akquise-Schritt für einen Lead vor. Antworte AUSSCHLIESSLICH mit gültigem JSON, ohne Erklärtext, in genau diesem Format: {\"schritt\":\"kurze Handlungsempfehlung\",\"text\":\"1-3 Sätze fertiger Text auf Deutsch, per Sie\",\"wiedervorlageInTagen\":3}. wiedervorlageInTagen ist eine Ganzzahl (Tage bis zur nächsten Wiedervorlage) oder null.",
       `Firma: ${input.firma}
 Aktueller Status: ${input.status}
@@ -252,7 +289,7 @@ export async function pickOfferItems(
       ]
     : [];
 
-  if (!anthropicConfigured || packages.length === 0) return fallback;
+  if (!aiConfigured || packages.length === 0) return fallback;
 
   try {
     const paketListe = packages
@@ -262,7 +299,7 @@ export async function pickOfferItems(
       )
       .join("\n");
 
-    const antwort = await askClaude(
+    const antwort = await askKI(
       "Du hilfst der Webagentur Lumio, aus einer Kundenanfrage die passenden Leistungspakete auszuwählen. Antworte AUSSCHLIESSLICH mit gültigem JSON, ohne Erklärtext.",
       `Kundenanfrage:\n"""${mailText}"""\n\nVerfügbare Pakete:\n${paketListe}\n\nWähle die passenden Pakete (meist 1–3) und Mengen. Antworte nur mit JSON in genau diesem Format:\n{"positionen":[{"paketId":"...","menge":1}]}`
     );
@@ -317,10 +354,10 @@ Bei Fragen melden Sie sich gerne – wir freuen uns auf die Zusammenarbeit!
 Beste Grüße
 ${senderName} · Lumio`;
 
-  if (!anthropicConfigured) return vorlage;
+  if (!aiConfigured) return vorlage;
 
   try {
-    const text = await askClaude(
+    const text = await askKI(
       "Du bist die freundliche, professionelle Assistenz der Webagentur Lumio. Schreibe kurze, persönliche Angebots-Begleitmails auf Deutsch (per Sie, außer der Kunde duzt erkennbar). Erwähne, dass das Angebot als PDF angehängt ist. Keine Platzhalter außer dem vorgegebenen Absendernamen. Gib nur den E-Mail-Text zurück, keinen Betreff.",
       `Anfrage des Kunden (Betreff: ${lead.subject}):\n"""${lead.snippet}"""\n\nAngebot ${offer.number}, gültig bis ${formatDate(offer.validUntil)}:\n${positionen}\nGesamtsumme netto: ${formatEuro(offer.total)} (§ 19 UStG, keine USt.)\n\nAbsender: ${senderName} von Lumio. Schreibe die Begleitmail.`
     );
@@ -361,10 +398,10 @@ export async function generateTagesbriefing(
     : "Alles ruhig – keine dringenden Punkte offen. Guter Moment für Akquise.";
 
   // Ohne offene Punkte oder ohne API-Key: keinen KI-Aufruf machen.
-  if (!anthropicConfigured || teile.length === 0) return fallback;
+  if (!aiConfigured || teile.length === 0) return fallback;
 
   try {
-    const text = await askClaude(
+    const text = await askKI(
       `Du bist die Assistenz im Dashboard der Webagentur Lumio. Fasse ${firstName} den Tag in 2-3 kurzen, motivierenden Sätzen auf Deutsch zusammen (per Du). Priorisiere: überfällige Rechnungen und fällige Wiedervorlagen zuerst, dann neue Anfragen, dann Termine und Mails. Nenne konkrete Zahlen, aber nur was wirklich anliegt (Nullwerte weglassen). Keine Aufzählungszeichen, keine Anrede-Zeile, kein Betreff – nur der Fließtext.`,
       `Offene Punkte heute:
 - Überfällige Rechnungen: ${s.ueberfaelligeRechnungen}
