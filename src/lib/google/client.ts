@@ -12,13 +12,18 @@ export function getRedirectUri(): string {
   );
 }
 
-// Berechtigungen, die wir von Google anfragen (Gmail lesen/senden + Kalender)
+// Berechtigungen, die wir von Google anfragen (Gmail lesen/senden/entwerfen + Kalender).
+// gmail.compose wird fuer die Sammel-Entwuerfe der Akquise gebraucht (drafts.create).
+// WICHTIG: Wird diese Liste erweitert, muss das betroffene Google-Konto (v. a. info@)
+// einmalig ueber /api/google/connect neu verbunden werden, damit die Zustimmung
+// die neue Berechtigung umfasst.
 export const GOOGLE_SCOPES = [
   "openid",
   "email",
   "profile",
   "https://www.googleapis.com/auth/gmail.readonly",
   "https://www.googleapis.com/auth/gmail.send",
+  "https://www.googleapis.com/auth/gmail.compose",
   "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/calendar.readonly",
 ];
@@ -103,4 +108,15 @@ export async function getGoogleClientForUser(userId: string) {
   const accountId = await getPrimaryAccountId(userId);
   if (!accountId) return null;
   return getGoogleClientForAccount(accountId);
+}
+
+// Client fuer das allgemeine info@-Postfach (Nutzer "info"). Faellt auf den
+// uebergebenen Nutzer zurueck, falls info@ (noch) nicht verbunden ist. So laufen
+// Akquise-Entwuerfe und der Sent-Abgleich immer ueber die offizielle Adresse.
+export async function getInfoClient(fallbackUserId: string) {
+  const infoUser = await prisma.user.findUnique({ where: { username: "info" } });
+  return (
+    (infoUser && (await getGoogleClientForUser(infoUser.id))) ||
+    (await getGoogleClientForUser(fallbackUserId))
+  );
 }

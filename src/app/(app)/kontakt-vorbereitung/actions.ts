@@ -31,6 +31,7 @@ export async function addFromProspect(formData: FormData) {
     data: {
       prospectId: p.id,
       firma: p.name,
+      branche: p.branche,
       ort: p.ort,
       telefon: p.telefon,
       website: p.website,
@@ -55,6 +56,7 @@ export async function addManual(formData: FormData) {
   await prisma.contactPrep.create({
     data: {
       firma,
+      branche: String(formData.get("branche") ?? "").trim(),
       ort: String(formData.get("ort") ?? "").trim(),
       telefon: String(formData.get("telefon") ?? "").trim(),
       email: String(formData.get("email") ?? "").trim(),
