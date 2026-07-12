@@ -1,10 +1,11 @@
 // Erzeugt einen KI-Antwortvorschlag zu einer E-Mail.
-// Nutzt Anthropic (Claude), wenn ein API-Key hinterlegt ist – sonst eine Vorlage.
+// Nutzt den konfigurierten KI-Anbieter (Gemini/Anthropic) – sonst eine Vorlage.
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { anthropicConfigured } from "@/lib/env";
+import { aiConfigured } from "@/lib/env";
+import { askKI } from "@/lib/ai";
 
 // Einfache Vorlagen-Antwort je Kategorie (ohne KI)
 function templatedReply(category: string, fromName: string): string {
@@ -29,8 +30,8 @@ export async function POST(request: Request) {
 
   const { subject, fromName, snippet, category } = await request.json();
 
-  // Ohne API-Key: Vorlage zurueckgeben
-  if (!anthropicConfigured) {
+  // Ohne KI-Anbieter: Vorlage zurueckgeben
+  if (!aiConfigured) {
     return NextResponse.json({
       suggestion: templatedReply(category ?? "", fromName ?? ""),
       demo: true,
@@ -38,28 +39,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Anthropic erst hier laden (nur wenn wirklich gebraucht)
-    const Anthropic = (await import("@anthropic-ai/sdk")).default;
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const model = process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001";
-
-    const message = await client.messages.create({
-      model,
-      max_tokens: 600,
-      system:
-        "Du bist die freundliche, professionelle Assistenz der Werbeagentur Lumio (Website- und Design-Dienstleistungen). Formuliere kurze, höfliche Antwort-E-Mails auf Deutsch, per Du falls der Absender ebenfalls duzt, sonst per Sie. Bleibe konkret und hilfsbereit. Keine Platzhalter in eckigen Klammern – außer '[Dein Name]' in der Signatur.",
-      messages: [
-        {
-          role: "user",
-          content: `Schreibe einen passenden Antwort-Entwurf auf diese E-Mail.\n\nAbsender: ${fromName}\nBetreff: ${subject}\nInhalt/Auszug: ${snippet}\nKategorie: ${category}\n\nGib nur den E-Mail-Text zurück.`,
-        },
-      ],
-    });
-
-    const text = message.content
-      .map((b) => (b.type === "text" ? b.text : ""))
-      .join("\n")
-      .trim();
+    const text = await askKI(
+      "Du bist die freundliche, professionelle Assistenz der Werbeagentur Lumio (Website- und Design-Dienstleistungen). Formuliere kurze, höfliche Antwort-E-Mails auf Deutsch, per Du falls der Absender ebenfalls duzt, sonst per Sie. Bleibe konkret und hilfsbereit. Keine Platzhalter in eckigen Klammern – außer '[Dein Name]' in der Signatur.",
+      `Schreibe einen passenden Antwort-Entwurf auf diese E-Mail.\n\nAbsender: ${fromName}\nBetreff: ${subject}\nInhalt/Auszug: ${snippet}\nKategorie: ${category}\n\nGib nur den E-Mail-Text zurück.`
+    );
 
     return NextResponse.json({ suggestion: text, demo: false });
   } catch {

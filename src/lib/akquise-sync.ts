@@ -8,6 +8,7 @@
 // Hand (idealerweise nach telefonischem Okay) verschickt.
 // (Nur serverseitig importiert: Server-Components + Route-Handler.)
 import { prisma } from "@/lib/prisma";
+import { geminiConfigured } from "@/lib/env";
 import { getInfoClient } from "@/lib/google/client";
 import { createDraft, listSentRecipients } from "@/lib/google/gmail";
 import { draftErstkontaktMail } from "@/lib/ai";
@@ -68,6 +69,10 @@ export async function entwuerfeFuerBranche(
       },
     });
     erstellt++;
+    // Freies Gemini-Minutenlimit schonen: kurze Pause zwischen den KI-Anfragen.
+    if (geminiConfigured && erstellt < mitMail.length) {
+      await new Promise((r) => setTimeout(r, 1200));
+    }
   }
 
   return { erstellt, uebersprungen, keinKonto: false };

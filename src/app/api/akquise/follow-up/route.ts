@@ -4,7 +4,7 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { anthropicConfigured } from "@/lib/env";
+import { aiConfigured } from "@/lib/env";
 import { suggestNextStep } from "@/lib/ai";
 
 export async function POST(request: Request) {
@@ -23,5 +23,5 @@ export async function POST(request: Request) {
     notiz: String(body.notiz ?? ""),
   });
 
-  return NextResponse.json({ ...result, demo: !anthropicConfigured });
+  return NextResponse.json({ ...result, demo: !aiConfigured });
 }
