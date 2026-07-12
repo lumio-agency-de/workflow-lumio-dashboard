@@ -19,13 +19,21 @@ export async function POST(request: Request) {
     return new Response("Firma fehlt", { status: 400 });
   }
 
-  const suggestion = await draftErstkontaktMail({
+  const mail = await draftErstkontaktMail({
     firma,
+    ort: String(body.ort ?? ""),
+    branche: String(body.branche ?? ""),
     website: String(body.website ?? ""),
+    websiteStatus: String(body.websiteStatus ?? ""),
     websiteMaengel: String(body.websiteMaengel ?? ""),
     empfohleneLeistungen: String(body.empfohleneLeistungen ?? ""),
     ansprechpartner: String(body.ansprechpartner ?? ""),
+    absender: session.user.name ?? undefined,
   });
 
-  return NextResponse.json({ suggestion, demo: !anthropicConfigured });
+  return NextResponse.json({
+    subject: mail.subject,
+    body: mail.body,
+    demo: !anthropicConfigured,
+  });
 }

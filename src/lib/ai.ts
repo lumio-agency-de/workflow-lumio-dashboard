@@ -2,6 +2,7 @@
 // Beide Funktionen haben einen Fallback ohne API-Key, damit alles immer funktioniert.
 import { anthropicConfigured } from "@/lib/env";
 import { formatEuro, formatDate } from "@/lib/format";
+import { brancheLabel } from "@/lib/akquise";
 
 // Vereinfachte Typen fuer die Eingaben
 type PackageInfo = {
@@ -42,49 +43,113 @@ async function askClaude(system: string, user: string): Promise<string> {
 // ---------------------------------------------------------------------------
 export type ErstkontaktInput = {
   firma: string;
+  ort?: string;
+  branche?: string; // Branchen-Schluessel, z. B. "heizung-sanitaer"
   website?: string;
-  websiteMaengel?: string;
+  websiteStatus?: string; // keine | veraltet | okay | unbekannt
+  websiteMaengel?: string; // interne, gepruefte Notiz – NICHT woertlich in die Mail
   empfohleneLeistungen?: string;
   ansprechpartner?: string;
+  absender?: string; // Name in der Gruss-Zeile, z. B. "Miko Brüll"
 };
+
+export type ErstkontaktMail = { subject: string; body: string };
+
+// Fester Betreff-Pool: Pain als Frage – sticht ins Auge, behauptet aber nichts
+// Konkretes (dieselbe "andeuten statt behaupten"-Linie wie im Mailtext). Die KI
+// darf NUR aus diesem Pool waehlen, damit keine Ausreisser-Betreffs entstehen.
+export const BETREFF_POOL = [
+  "Verschenken Sie online gerade Anfragen?",
+  "Werden Sie gefunden – oder Ihr Wettbewerber?",
+] as const;
 
 export async function draftErstkontaktMail(
   input: ErstkontaktInput
-): Promise<string> {
-  const anrede = input.ansprechpartner?.trim()
-    ? `Hallo ${input.ansprechpartner.split(" ")[0]},`
-    : "Guten Tag,";
-  const leistung =
-    input.empfohleneLeistungen?.split(",")[0]?.trim() || "eine moderne Website";
+): Promise<ErstkontaktMail> {
+  const absender = input.absender?.trim() || "Miko Brüll";
+  const ort = input.ort?.trim();
+  const ortTeil = ort ? ` aus ${ort}` : "";
+  const keineWebsite = input.websiteStatus === "keine";
 
-  // Fallback-Vorlage ohne KI (funktioniert immer)
-  const vorlage = `${anrede}
+  // Betreff passend zum Fall: ohne Website zieht der "gefunden werden"-Betreff,
+  // sonst der "Anfragen verschenken"-Betreff.
+  const subject = keineWebsite ? BETREFF_POOL[1] : BETREFF_POOL[0];
 
-ich bin auf ${input.firma} aufmerksam geworden und habe mir Ihren Auftritt angesehen.${
-    input.websiteMaengel?.trim()
-      ? ` Dabei ist mir aufgefallen: ${input.websiteMaengel.trim()}.`
-      : ""
-  } Genau da können wir von Lumio helfen – z. B. mit ${leistung}.
+  // Fallback-Vorlagen ohne KI (funktionieren immer). Deuten an statt zu
+  // behaupten; Ziel ist ein kurzer Online-Termin (Zoom), kein Anruf.
+  const bodyA = `Guten Tag,
 
-Hätten Sie diese Woche kurz Zeit für einen unverbindlichen Austausch? Ich zeige Ihnen gerne konkret, was sich verbessern lässt.
+als Betrieb${ortTeil} leben Sie von Kundschaft aus der Region – und die schaut heute fast immer zuerst online, bevor sie anruft. Genau da bin ich auf Sie aufmerksam geworden.
+
+Beim Blick auf Ihren Auftritt sind mir ein paar Punkte aufgefallen, mit denen Sie mit wenig Aufwand mehr Anfragen bekommen könnten. Statt das lang zu beschreiben, zeige ich es Ihnen lieber direkt: In einem kurzen Online-Termin (10–15 Minuten per Zoom) gehe ich Ihren Auftritt mit Ihnen durch und zeige konkret, was sich verbessern lässt – und wie eine moderne Website von Lumio für Sie aussehen könnte.
+
+Hätten Sie diese Woche Zeit für einen kurzen Online-Termin? Nennen Sie mir gern zwei oder drei Zeitfenster, die Ihnen entgegenkommen – ich richte mich ganz nach Ihnen.
 
 Beste Grüße
-[Dein Name] · Lumio`;
+${absender} · Lumio`;
+
+  const bodyB = `Guten Tag,
+
+als Betrieb${ortTeil} gewinnen Sie Ihre Kunden vermutlich vor allem über Empfehlung und Telefon. Mir ist aufgefallen, dass Sie online bisher kaum zu finden sind – und dabei geht einiges verloren, weil immer mehr Leute zuerst googeln.
+
+Eine schlanke, moderne Website ändert das schnell: Sie werden gefunden, wirken professionell, und Interessenten können direkt Kontakt aufnehmen. Statt das lang zu beschreiben, zeige ich es Ihnen lieber direkt: In einem kurzen Online-Termin (10–15 Minuten per Zoom) zeige ich Ihnen, wie das für Sie aussehen könnte.
+
+Hätten Sie diese Woche Zeit für einen kurzen Online-Termin? Nennen Sie mir gern zwei oder drei Zeitfenster, die Ihnen entgegenkommen – ich richte mich ganz nach Ihnen.
+
+Beste Grüße
+${absender} · Lumio`;
+
+  const vorlage: ErstkontaktMail = { subject, body: keineWebsite ? bodyB : bodyA };
 
   if (!anthropicConfigured) return vorlage;
 
+  const branche = input.branche?.trim() ? brancheLabel(input.branche.trim()) : "";
+
   try {
-    const text = await askClaude(
-      "Du bist die freundliche, professionelle Assistenz der Webagentur Lumio (Websites & Design). Schreibe eine kurze, persönliche Erstkontakt-Mail auf Deutsch (per Sie). Beziehe dich konkret auf den genannten Website-Mangel und verbinde ihn mit einer passenden Lumio-Leistung. Freundlich, nicht aufdringlich, mit einer klaren, niederschwelligen Handlungsaufforderung (kurzes Gespräch). Maximal ~120 Wörter. Keine Platzhalter in eckigen Klammern außer '[Dein Name]' in der Signatur. Gib nur den Mail-Text zurück, keinen Betreff.",
-      `Firma: ${input.firma}
-Website: ${input.website || "unbekannt"}
-Mängel an der Website: ${input.websiteMaengel?.trim() || "unbekannt"}
-Passende Lumio-Leistungen: ${input.empfohleneLeistungen?.trim() || "moderne Website, SEO, Design"}
+    const antwort = await askClaude(
+      `Du bist die Akquise-Assistenz der Webagentur Lumio (Websites & Design, Sitz Aidlingen). Schreibe eine kurze, persönliche Kalt-Erstkontakt-Mail auf Deutsch (per Sie) an einen kleinen oder mittelständischen Betrieb.
+
+FESTES GERÜST – halte dich exakt an diesen Aufbau und Ton:
+1. Anrede: "Guten Tag Herr/Frau <Nachname>," NUR wenn ein Ansprechpartner mit eindeutigem Nachnamen genannt ist und die Anrede (Herr/Frau) zweifelsfrei passt; sonst schlicht "Guten Tag,".
+2. Regionaler Aufhänger: ein Satz, der Branche und Ort aufgreift (Kunden schauen heute zuerst online), und der mit genau dem Satz endet: "Genau da bin ich auf Sie aufmerksam geworden." Den Firmennamen NICHT nennen.
+3. Andeutung + Angebot: deute an, dass dir "ein paar Punkte" aufgefallen sind, mit denen der Betrieb mit wenig Aufwand mehr Anfragen bekäme – OHNE einen einzigen konkreten Mangel zu behaupten. Biete an, es in einem kurzen Online-Termin (10–15 Minuten per Zoom) direkt zu zeigen und wie eine moderne Website von Lumio aussehen könnte.
+4. Handlungsaufforderung: frage nach einem kurzen Online-Termin diese Woche und bitte um zwei, drei Zeitfenster. Verwende NICHT das Wort "passt".
+5. Gruß: "Beste Grüße", in der nächsten Zeile "<Absender> · Lumio".
+
+HARTE REGELN:
+- Niemals konkrete Mängel behaupten (kein "Ihnen fehlt X", kein "Kein Impressum/HTTPS" o. Ä.). Die interne Analyse-Notiz dient NUR zur Wahl von Variante und Ton, sie darf NICHT als Aussage in der Mail auftauchen.
+- Wenn der Website-Status "keine" ist: nutze die Variante "online bisher kaum zu finden" statt "Ihr Auftritt".
+- ~90–120 Wörter, freundlich und professionell, kein Verkaufsdruck, keine Ausrufezeichen-Ketten, keine Emojis, keine Platzhalter in eckigen Klammern.
+- Betreff: wähle GENAU EINEN aus dem vorgegebenen Pool und gib ihn wörtlich zurück – erfinde keinen eigenen.
+
+Antworte AUSSCHLIESSLICH mit gültigem JSON in genau diesem Format, ohne weiteren Text:
+{"subject":"<einer aus dem Pool>","body":"<Mailtext, \\n für Zeilenumbrüche>"}`,
+      `Absender: ${absender}
+Firma: ${input.firma}
+Ort: ${ort || "unbekannt"}
+Branche: ${branche || "unbekannt"}
+Website-Status: ${input.websiteStatus || "unbekannt"}
+Interne Analyse-Notiz (NICHT wörtlich verwenden): ${input.websiteMaengel?.trim() || "—"}
+Passende Lumio-Leistungen (nur zur Orientierung): ${input.empfohleneLeistungen?.trim() || "moderne Website"}
 Ansprechpartner: ${input.ansprechpartner?.trim() || "unbekannt"}
+
+Erlaubter Betreff-Pool (genau einen wörtlich wählen):
+- ${BETREFF_POOL[0]}
+- ${BETREFF_POOL[1]}
 
 Schreibe die Erstkontakt-Mail.`
     );
-    return text || vorlage;
+
+    const jsonMatch = antwort.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return vorlage;
+    const parsed = JSON.parse(jsonMatch[0]) as Partial<ErstkontaktMail>;
+    const body = parsed.body?.trim();
+    if (!body) return vorlage;
+    // Betreff muss aus dem Pool stammen – sonst den berechneten Fallback nehmen.
+    const subjectOk =
+      !!parsed.subject &&
+      (BETREFF_POOL as readonly string[]).includes(parsed.subject.trim());
+    return { subject: subjectOk ? parsed.subject!.trim() : subject, body };
   } catch {
     return vorlage;
   }
