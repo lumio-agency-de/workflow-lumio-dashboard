@@ -129,6 +129,75 @@ export async function sendMailWithAttachment(
   });
 }
 
+// Einen Gmail-Entwurf (HTML) im verbundenen Postfach anlegen. Wird fuer die
+// Sammel-Erstkontakt-Entwuerfe der Akquise genutzt (info@-Postfach). Legt NUR
+// einen Entwurf an – der Versand passiert bewusst von Hand.
+export async function createDraft(
+  client: OAuthClient,
+  input: { to: string; subject: string; html: string }
+): Promise<string> {
+  const gmail = google.gmail({ version: "v1", auth: client });
+
+  // Betreff mit Umlauten korrekt kodieren (RFC 2047)
+  const subjectEnc = `=?UTF-8?B?${Buffer.from(input.subject, "utf8").toString("base64")}?=`;
+
+  const mime =
+    `To: ${input.to}\r\n` +
+    `Subject: ${subjectEnc}\r\n` +
+    `MIME-Version: 1.0\r\n` +
+    `Content-Type: text/html; charset="UTF-8"\r\n` +
+    `Content-Transfer-Encoding: base64\r\n\r\n` +
+    Buffer.from(input.html, "utf8").toString("base64");
+
+  const res = await gmail.users.drafts.create({
+    userId: "me",
+    requestBody: { message: { raw: Buffer.from(mime).toString("base64url") } },
+  });
+  return res.data.id ?? "";
+}
+
+// Empfaenger der zuletzt VERSENDETEN Mails (Ordner "Gesendet") holen – fuer die
+// Erkennung, ob ein Akquise-Entwurf inzwischen abgeschickt wurde. Liefert je
+// gefundener Empfaengeradresse den (neuesten) Versandzeitpunkt in ms.
+export async function listSentRecipients(
+  client: OAuthClient,
+  opts: { newerThanDays?: number; maxResults?: number } = {}
+): Promise<{ email: string; dateMs: number }[]> {
+  const gmail = google.gmail({ version: "v1", auth: client });
+  const days = opts.newerThanDays ?? 30;
+
+  const list = await gmail.users.messages.list({
+    userId: "me",
+    maxResults: opts.maxResults ?? 100,
+    q: `in:sent newer_than:${days}d`,
+  });
+  const ids = (list.data.messages ?? []).map((m) => m.id).filter(Boolean) as string[];
+
+  const details = await Promise.all(
+    ids.map((id) =>
+      gmail.users.messages.get({
+        userId: "me",
+        id,
+        format: "metadata",
+        metadataHeaders: ["To", "Cc"],
+      })
+    )
+  );
+
+  const out: { email: string; dateMs: number }[] = [];
+  for (const d of details) {
+    const msg = d.data;
+    const headers = msg.payload?.headers ?? [];
+    const dateMs = msg.internalDate ? Number(msg.internalDate) : Date.now();
+    const recipients = `${header(headers, "To")},${header(headers, "Cc")}`;
+    // Adressen aus "Name <a@b.de>, c@d.de" herausziehen
+    for (const m of recipients.matchAll(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g)) {
+      out.push({ email: m[0].toLowerCase(), dateMs });
+    }
+  }
+  return out;
+}
+
 // Metadaten einer Nachricht laden (fuer sauberes Threading beim Antworten)
 export async function getMessageMeta(
   client: OAuthClient,

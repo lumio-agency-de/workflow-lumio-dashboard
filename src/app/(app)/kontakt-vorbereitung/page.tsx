@@ -1,10 +1,16 @@
 // Kontakt-Vorbereitung (Bereich Akquise): Firmen aus der Lead-Liste (oder manuell)
-// analysieren und den Erstkontakt (Anruf/Mail) vorbereiten.
+// analysieren und den Erstkontakt (Anruf/Mail) vorbereiten. Nach Branche
+// filterbar; kontaktierte Firmen wandern automatisch in den Bereich "Kontaktiert".
 import { ClipboardList, Plus, Radar } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
 import { PageHeader, Panel } from "@/components/panel";
 import { Reveal } from "@/components/reveal";
+import { BRANCHEN, brancheLabel } from "@/lib/akquise";
+import { googleConfigured } from "@/lib/env";
+import { syncKontaktiertMitGmail } from "@/lib/akquise-sync";
 import PrepCard, { type PrepData } from "./prep-card";
+import AkquiseAktionen from "./akquise-aktionen";
 import { addFromProspect, addManual } from "./actions";
 import { DbUnavailable, isMissingTableError } from "@/components/db-unavailable";
 
@@ -13,20 +19,55 @@ export const dynamic = "force-dynamic";
 const inputClass =
   "w-full rounded-lg border border-line bg-white/5 px-3 py-2 text-sm text-ink outline-none placeholder:text-muted focus:border-accent";
 
+type PageProps = { searchParams: Promise<{ branche?: string }> };
+
 // Faengt den Fall ab, dass die ContactPrep-/Prospect-Tabellen noch nicht
 // migriert sind (Hinweis statt 500-Seite).
-export default async function KontaktVorbereitungPage() {
+export default async function KontaktVorbereitungPage(props: PageProps) {
   try {
-    return await KontaktVorbereitungPageInner();
+    return await KontaktVorbereitungPageInner(props);
   } catch (e) {
     if (isMissingTableError(e)) return <DbUnavailable titel="Kontakt-Vorbereitung" />;
     throw e;
   }
 }
 
-async function KontaktVorbereitungPageInner() {
-  // Vorhandene Vorbereitungen (inkl. Herkunft aus dem Lead-Tool)
+async function KontaktVorbereitungPageInner({ searchParams }: PageProps) {
+  const { branche: brancheParam } = await searchParams;
+  const session = await auth();
+
+  // Vor dem Laden einmal mit dem info@-Sent-Ordner abgleichen: bereits
+  // angeschriebene Firmen nach "kontaktiert" schieben. Fehler nie fatal.
+  if (googleConfigured && session?.user?.id) {
+    try {
+      await syncKontaktiertMitGmail(session.user.id);
+    } catch {
+      /* Abgleich optional – Seite laedt auch ohne Gmail */
+    }
+  }
+
+  // Branchen mit noch offenen/vorbereiteten Firmen (fuer die Filter-Chips).
+  const gruppen = await prisma.contactPrep.groupBy({
+    by: ["branche"],
+    where: { status: { not: "kontaktiert" } },
+    _count: { _all: true },
+    orderBy: { _count: { branche: "desc" } },
+  });
+  const branchenMitDaten = gruppen
+    .filter((g) => g.branche) // leere Branche (alte/manuelle Eintraege) nicht als Chip
+    .map((g) => ({ key: g.branche, count: g._count._all }));
+
+  const aktiveBranche =
+    brancheParam && branchenMitDaten.some((b) => b.key === brancheParam)
+      ? brancheParam
+      : null;
+
+  // Vorhandene Vorbereitungen (offen/vorbereitet), optional nach Branche gefiltert.
   const preps = await prisma.contactPrep.findMany({
+    where: {
+      status: { not: "kontaktiert" },
+      ...(aktiveBranche ? { branche: aktiveBranche } : {}),
+    },
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     include: { prospect: { select: { aufhaenger: true } } },
   });
@@ -76,9 +117,19 @@ async function KontaktVorbereitungPageInner() {
         />
       </Reveal>
 
+      {/* Sammel-Aktionen: Entwuerfe je Branche + Gmail-Abgleich */}
+      <Reveal delay={0.04}>
+        <Panel className="mb-6 p-5">
+          <AkquiseAktionen
+            branche={aktiveBranche}
+            brancheLabel={aktiveBranche ? brancheLabel(aktiveBranche) : null}
+          />
+        </Panel>
+      </Reveal>
+
       {/* Firmen hinzufuegen */}
       <Reveal delay={0.05}>
-        <Panel className="mb-8 p-5">
+        <Panel className="mb-6 p-5">
           <div className="grid gap-6 md:grid-cols-2">
             {/* Aus der Lead-Liste uebernehmen */}
             <div>
@@ -129,6 +180,14 @@ async function KontaktVorbereitungPageInner() {
                   <input name="website" placeholder="Website" className={inputClass} />
                   <input name="ort" placeholder="Ort" className={inputClass} />
                 </div>
+                <select name="branche" defaultValue="" className={inputClass}>
+                  <option value="">Branche wählen (optional) …</option>
+                  {BRANCHEN.map((b) => (
+                    <option key={b.key} value={b.key}>
+                      {b.label}
+                    </option>
+                  ))}
+                </select>
                 <button
                   type="submit"
                   className="self-start rounded-xl border border-line bg-white/5 px-4 py-2 text-sm font-semibold text-ink transition hover:border-accent hover:text-accent"
@@ -141,14 +200,52 @@ async function KontaktVorbereitungPageInner() {
         </Panel>
       </Reveal>
 
+      {/* Branchen-Filter */}
+      {branchenMitDaten.length > 0 && (
+        <Reveal delay={0.08}>
+          <div className="mb-6 flex flex-wrap items-center gap-2">
+            <a
+              href="/kontakt-vorbereitung"
+              className={
+                "rounded-full border px-3 py-1.5 text-sm transition " +
+                (!aktiveBranche
+                  ? "border-accent/40 bg-accent/10 text-accent"
+                  : "border-line bg-white/5 text-muted hover:text-ink")
+              }
+            >
+              Alle
+            </a>
+            {branchenMitDaten.map((b) => {
+              const aktiv = b.key === aktiveBranche;
+              return (
+                <a
+                  key={b.key}
+                  href={`/kontakt-vorbereitung?branche=${encodeURIComponent(b.key)}`}
+                  className={
+                    "rounded-full border px-3 py-1.5 text-sm transition " +
+                    (aktiv
+                      ? "border-accent/40 bg-accent/10 text-accent"
+                      : "border-line bg-white/5 text-muted hover:text-ink")
+                  }
+                >
+                  {brancheLabel(b.key)}
+                  <span className="ml-1.5 text-xs opacity-70">{b.count}</span>
+                </a>
+              );
+            })}
+          </div>
+        </Reveal>
+      )}
+
       {/* Liste der Vorbereitungen */}
       {cards.length === 0 ? (
         <Reveal delay={0.1}>
           <div className="glass flex flex-col items-center gap-3 rounded-2xl p-10 text-center">
             <ClipboardList className="h-8 w-8 text-muted" />
             <p className="text-sm text-muted">
-              Noch keine Firmen in der Vorbereitung. Übernimm oben eine Firma aus
-              den Leads oder lege manuell eine an.
+              {aktiveBranche
+                ? "Keine offenen Firmen in dieser Branche."
+                : "Noch keine Firmen in der Vorbereitung. Übernimm oben eine Firma aus den Leads oder lege manuell eine an."}
             </p>
           </div>
         </Reveal>
