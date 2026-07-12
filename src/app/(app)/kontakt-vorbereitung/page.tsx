@@ -92,6 +92,7 @@ async function KontaktVorbereitungPageInner({ searchParams }: PageProps) {
     id: p.id,
     firma: p.firma,
     ort: p.ort,
+    branche: p.branche,
     telefon: p.telefon,
     email: p.email,
     website: p.website,

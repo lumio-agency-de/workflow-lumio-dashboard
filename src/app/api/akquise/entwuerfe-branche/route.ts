@@ -19,7 +19,11 @@ export async function POST(request: Request) {
     return new Response("Branche fehlt", { status: 400 });
   }
 
-  const ergebnis = await entwuerfeFuerBranche(branche, session.user.id);
+  const ergebnis = await entwuerfeFuerBranche(
+    branche,
+    session.user.id,
+    session.user.name ?? undefined
+  );
   revalidatePath("/kontakt-vorbereitung");
   return NextResponse.json(ergebnis);
 }

@@ -21,6 +21,7 @@ export type PrepData = {
   id: string;
   firma: string;
   ort: string;
+  branche?: string;
   telefon: string;
   email: string;
   website: string;
@@ -60,7 +61,7 @@ export default function PrepCard({
 
   // KI-Erstkontakt-Mail – nur auf Knopfdruck.
   const formRef = useRef<HTMLFormElement>(null);
-  const [mail, setMail] = useState<string | null>(null);
+  const [mail, setMail] = useState<{ subject: string; body: string } | null>(null);
   const [mailLoading, setMailLoading] = useState(false);
   const [mailError, setMailError] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -77,15 +78,18 @@ export default function PrepCard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           firma: String(fd.get("firma") ?? prep.firma),
+          ort: String(fd.get("ort") ?? prep.ort),
+          branche: prep.branche ?? "",
           website: String(fd.get("website") ?? prep.website),
+          websiteStatus: String(fd.get("websiteStatus") ?? prep.websiteStatus),
           websiteMaengel: String(fd.get("websiteMaengel") ?? prep.websiteMaengel),
           empfohleneLeistungen: selected.join(", "),
           ansprechpartner: String(fd.get("ansprechpartner") ?? prep.ansprechpartner),
         }),
       });
       if (!res.ok) throw new Error("Fehler");
-      const data = (await res.json()) as { suggestion: string };
-      setMail(data.suggestion);
+      const data = (await res.json()) as { subject: string; body: string };
+      setMail({ subject: data.subject, body: data.body });
     } catch {
       setMailError(true);
     } finally {
@@ -95,7 +99,7 @@ export default function PrepCard({
 
   function copyMail() {
     if (!mail) return;
-    navigator.clipboard?.writeText(mail).then(() => {
+    navigator.clipboard?.writeText(mail.body).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     });
@@ -347,7 +351,7 @@ export default function PrepCard({
           <div className="flex flex-col gap-2 rounded-xl border border-accent/25 bg-accent/5 p-4">
             <div className="flex items-center justify-between">
               <span className="text-xs uppercase tracking-wide text-accent">
-                Erstkontakt-Mail
+                Erstkontakt-Mail (Entwurf)
               </span>
               <div className="flex items-center gap-2">
                 <button
@@ -375,7 +379,10 @@ export default function PrepCard({
                 </button>
               </div>
             </div>
-            <p className="whitespace-pre-wrap text-sm text-ink">{mail}</p>
+            <p className="text-xs text-muted">
+              Betreff: <span className="text-ink">{mail.subject}</span>
+            </p>
+            <p className="whitespace-pre-wrap text-sm text-ink">{mail.body}</p>
           </div>
         )}
       </form>

@@ -23,7 +23,8 @@ export type EntwuerfeErgebnis = {
 // je einen Gmail-Entwurf (info@) anlegen.
 export async function entwuerfeFuerBranche(
   branche: string,
-  fallbackUserId: string
+  fallbackUserId: string,
+  absender?: string
 ): Promise<EntwuerfeErgebnis> {
   const preps = await prisma.contactPrep.findMany({
     where: { branche, status: { not: "kontaktiert" } },
@@ -39,17 +40,23 @@ export async function entwuerfeFuerBranche(
 
   let erstellt = 0;
   for (const p of mitMail) {
-    const text = await draftErstkontaktMail({
+    // Betreff + Text kommen aus dem festen KI-Geruest (bzw. der Fallback-Vorlage).
+    // Die gepruefte Analyse (websiteStatus/Maengel) steuert nur Variante und Ton.
+    const { subject, body } = await draftErstkontaktMail({
       firma: p.firma,
+      ort: p.ort,
+      branche: p.branche,
       website: p.website,
+      websiteStatus: p.websiteStatus,
       websiteMaengel: p.websiteMaengel,
       empfohleneLeistungen: p.empfohleneLeistungen,
       ansprechpartner: p.ansprechpartner,
+      absender,
     });
-    const html = erstkontaktMailHtml(text);
+    const html = erstkontaktMailHtml(body);
     await createDraft(client, {
       to: p.email.trim(),
-      subject: `Ihr Online-Auftritt – kurzer Impuls von Lumio`,
+      subject,
       html,
     });
     await prisma.contactPrep.update({
