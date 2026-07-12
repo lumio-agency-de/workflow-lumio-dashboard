@@ -1,22 +1,21 @@
 "use client";
 
-// Eine Zeile der Lead-Liste: abhaken (kontaktiert), Status setzen, Notiz +
-// Reaktion pflegen. Genau diese Felder sind die manuellen CRM-Felder, die der
-// leadgen-Sync nie ueberschreibt. Auf-/zuklappbar fuer den Gespraechsaufhaenger.
+// Eine Zeile der Lead-Liste: ueber den Kreis links direkt in die
+// Kontakt-Vorbereitung uebernehmen (die Firma verschwindet dann aus dieser
+// Liste), sowie Notiz + Reaktion pflegen. Das sind die manuellen CRM-Felder,
+// die der leadgen-Sync nie ueberschreibt. Auf-/zuklappbar fuer den Aufhaenger.
 import { useState, useTransition } from "react";
 import {
-  CheckCircle2,
   Circle,
   Phone,
   Globe,
   ChevronDown,
-  ClipboardList,
   Sparkles,
   Copy,
   Check,
   CalendarClock,
 } from "lucide-react";
-import { PROSPECT_STATUS, statusInfo, scoreClass } from "@/lib/akquise";
+import { scoreClass } from "@/lib/akquise";
 import { updateProspect } from "./actions";
 import { addFromProspect } from "@/app/(app)/kontakt-vorbereitung/actions";
 
@@ -34,15 +33,12 @@ type P = {
   ansprechpartner: string;
   reaktion: string;
   notiz: string;
-  hatVorbereitung?: boolean;
 };
 
 export default function ProspectRow({ p }: { p: P }) {
   const [, startTransition] = useTransition();
   const [prepPending, startPrepTransition] = useTransition();
   const [offen, setOffen] = useState(false);
-  const kontaktiert = p.status !== "neu";
-  const info = statusInfo(p.status);
 
   // KI-Follow-up ("naechster Schritt") – nur auf Knopfdruck.
   type FollowUp = {
@@ -123,17 +119,16 @@ export default function ProspectRow({ p }: { p: P }) {
   return (
     <li className="py-3">
       <div className="flex items-center gap-3">
-        {/* Abhaken */}
+        {/* Kreis links: Firma direkt in die Kontakt-Vorbereitung uebernehmen
+            (danach verschwindet sie aus dieser Liste). */}
         <button
-          onClick={() => submit({ kontaktiert: kontaktiert ? "false" : "true" })}
-          aria-label={kontaktiert ? "Als offen markieren" : "Als kontaktiert markieren"}
-          className="shrink-0 text-muted transition-colors hover:text-accent"
+          onClick={inVorbereitung}
+          disabled={prepPending}
+          aria-label="In Kontakt-Vorbereitung übernehmen"
+          title="In Kontakt-Vorbereitung übernehmen"
+          className="shrink-0 text-muted transition-colors hover:text-accent disabled:opacity-50"
         >
-          {kontaktiert ? (
-            <CheckCircle2 className="h-5 w-5 text-accent" />
-          ) : (
-            <Circle className="h-5 w-5" />
-          )}
+          <Circle className="h-5 w-5" />
         </button>
 
         {/* Score */}
@@ -175,35 +170,6 @@ export default function ProspectRow({ p }: { p: P }) {
             )}
           </div>
         </div>
-
-        {/* Status */}
-        <select
-          value={p.status}
-          onChange={(e) => submit({ status: e.target.value })}
-          className={"shrink-0 rounded-lg border px-2 py-1 text-xs " + info.className}
-        >
-          {PROSPECT_STATUS.map((s) => (
-            <option key={s.key} value={s.key} className="bg-[#0c131f] text-ink">
-              {s.label}
-            </option>
-          ))}
-        </select>
-
-        {/* Kontakt-Vorbereitung */}
-        {p.hatVorbereitung ? (
-          <span className="hidden shrink-0 items-center gap-1 text-xs text-muted sm:inline-flex">
-            <ClipboardList className="h-3 w-3" /> ✓ in Vorbereitung
-          </span>
-        ) : (
-          <button
-            onClick={inVorbereitung}
-            disabled={prepPending}
-            title="In Kontakt-Vorbereitung übernehmen"
-            className="hidden shrink-0 items-center gap-1 rounded-lg border border-line bg-white/5 px-2 py-1 text-xs text-muted transition-colors hover:border-accent/40 hover:text-accent disabled:opacity-50 sm:inline-flex"
-          >
-            <ClipboardList className="h-3 w-3" /> → Vorbereitung
-          </button>
-        )}
 
         {/* Aufklappen */}
         <button
