@@ -16,30 +16,30 @@ datasource db {
 
 // Benutzerkonto fuer den Login (nur Miko und Nevio, keine offene Registrierung)
 model User {
-  id           String   @id @default(cuid()) // eindeutige ID
-  username     String   @unique              // Login-Name (z. B. "miko")
-  name         String                        // Anzeigename (z. B. "Miko Bruell")
-  passwordHash String                        // Passwort NUR gehasht (bcrypt), nie Klartext
-  mustChangePassword Boolean  @default(false) // erzwingt beim Login einen Passwort-Wechsel
-  passwordChangedAt  DateTime?               // Zeitpunkt des letzten Passwort-Wechsels
-  createdAt    DateTime @default(now())      // Erstellzeitpunkt
+  id                 String    @id @default(cuid()) // eindeutige ID
+  username           String    @unique // Login-Name (z. B. "miko")
+  name               String // Anzeigename (z. B. "Miko Bruell")
+  passwordHash       String // Passwort NUR gehasht (bcrypt), nie Klartext
+  mustChangePassword Boolean   @default(false) // erzwingt beim Login einen Passwort-Wechsel
+  passwordChangedAt  DateTime? // Zeitpunkt des letzten Passwort-Wechsels
+  createdAt          DateTime  @default(now()) // Erstellzeitpunkt
 
-  googleAccounts GoogleAccount[]              // verbundene Google-Workspace-Konten (0..n pro Nutzer)
+  googleAccounts GoogleAccount[] // verbundene Google-Workspace-Konten (0..n pro Nutzer)
 }
 
 // Verbundenes Google-Konto fuer Gmail + Kalender (OAuth-Tokens).
 // Wird angelegt, sobald ein Nutzer sein Google-Workspace-Konto verbindet.
 model GoogleAccount {
-  id           String   @id @default(cuid())
-  userId       String                        // Nutzer, dem dieses Konto gehoert (NICHT mehr unique: mehrere Konten pro Nutzer moeglich)
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  email        String                        // verbundene Google-Adresse
-  accessToken  String                        // kurzlebiges Zugriffs-Token
-  refreshToken String   @default("")         // langlebiges Token zum Erneuern
-  expiryDate   DateTime?                      // Ablaufzeitpunkt des accessToken
-  scope        String   @default("")         // erteilte Berechtigungen
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id           String    @id @default(cuid())
+  userId       String // Nutzer, dem dieses Konto gehoert (NICHT mehr unique: mehrere Konten pro Nutzer moeglich)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email        String // verbundene Google-Adresse
+  accessToken  String // kurzlebiges Zugriffs-Token
+  refreshToken String    @default("") // langlebiges Token zum Erneuern
+  expiryDate   DateTime? // Ablaufzeitpunkt des accessToken
+  scope        String    @default("") // erteilte Berechtigungen
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@index([userId])
 }
@@ -48,19 +48,19 @@ model GoogleAccount {
 // und durchlaeuft die Pipeline: neu -> angebot_erstellt -> angebot_gesendet -> gewonnen/verloren
 model Lead {
   id            String    @id @default(cuid())
-  mailId        String    @unique              // Gmail-Nachrichten-ID (verhindert Duplikate)
-  fromName      String                          // Absendername
-  fromEmail     String                          // Absenderadresse
-  subject       String                          // Betreff der Anfrage
-  snippet       String    @default("")          // Textauszug der Mail
-  mailDate      DateTime                        // Datum der Mail
-  status        String    @default("neu")       // neu | angebot_erstellt | angebot_gesendet | gewonnen | verloren | geloescht (Tombstone: ausgeblendet, verhindert Wieder-Anlage beim Mail-Sync)
-  emailDraft    String    @default("")          // gespeicherter Mail-Vorschlag fuer den Versand
-  sentAt        DateTime?                        // wann das Angebot verschickt wurde
-  offerId       String?   @unique               // verknuepftes (automatisch erstelltes) Angebot
+  mailId        String    @unique // Gmail-Nachrichten-ID (verhindert Duplikate)
+  fromName      String // Absendername
+  fromEmail     String // Absenderadresse
+  subject       String // Betreff der Anfrage
+  snippet       String    @default("") // Textauszug der Mail
+  mailDate      DateTime // Datum der Mail
+  status        String    @default("neu") // neu | angebot_erstellt | angebot_gesendet | gewonnen | verloren | geloescht (Tombstone: ausgeblendet, verhindert Wieder-Anlage beim Mail-Sync)
+  emailDraft    String    @default("") // gespeicherter Mail-Vorschlag fuer den Versand
+  sentAt        DateTime? // wann das Angebot verschickt wurde
+  offerId       String?   @unique // verknuepftes (automatisch erstelltes) Angebot
   offer         Offer?    @relation(fields: [offerId], references: [id], onDelete: SetNull)
-  mailboxUserId String?                          // Dashboard-Nutzer, ueber dessen Google-Konto diese Mail einging
-  mailboxEmail  String    @default("")           // die empfangende Adresse (z. B. info@lumio-agency.de), fuer Anzeige + Antwortversand
+  mailboxUserId String? // Dashboard-Nutzer, ueber dessen Google-Konto diese Mail einging
+  mailboxEmail  String    @default("") // die empfangende Adresse (z. B. info@lumio-agency.de), fuer Anzeige + Antwortversand
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -68,12 +68,12 @@ model Lead {
 // Notiz zu einem durchgefuehrten Telefonat (Cold Call)
 model CallNote {
   id        String   @id @default(cuid())
-  company   String   @default("")            // angerufene Firma
-  contact   String   @default("")            // Ansprechpartner
-  phone     String   @default("")            // Telefonnummer
+  company   String   @default("") // angerufene Firma
+  contact   String   @default("") // Ansprechpartner
+  phone     String   @default("") // Telefonnummer
   outcome   String   @default("nicht_erreicht") // erreicht | nicht_erreicht | interesse | kein_interesse | termin
-  notes     String   @default("")            // wie ist das Gespraech gelaufen
-  nextStep  String   @default("")            // naechster Schritt (z. B. "Freitag erneut anrufen")
+  notes     String   @default("") // wie ist das Gespraech gelaufen
+  nextStep  String   @default("") // naechster Schritt (z. B. "Freitag erneut anrufen")
   createdAt DateTime @default(now())
 }
 
@@ -84,39 +84,39 @@ model CallNote {
 // AUSGEHENDE Akquise. Die Auto-Felder (Bewertung) aktualisiert jeder
 // leadgen-Lauf; die manuellen CRM-Felder ruehrt der Sync nie an.
 model Prospect {
-  id        String   @id @default(cuid())
-  dedupKey  String   @unique               // stabiler Firmen-Schluessel (dedup._schluessel) – verhindert Doppel ueber Laeufe
+  id       String @id @default(cuid())
+  dedupKey String @unique // stabiler Firmen-Schluessel (dedup._schluessel) – verhindert Doppel ueber Laeufe
 
   // Stammdaten (auto)
-  name      String                          // Firmenname
-  branche   String   @default("")           // z. B. "heizung-sanitaer" (Kategorie im leadgen)
-  telefon   String   @default("")
-  adresse   String   @default("")
-  plz       String   @default("")
-  ort       String   @default("")
-  website   String   @default("")
+  name    String // Firmenname
+  branche String @default("") // z. B. "heizung-sanitaer" (Kategorie im leadgen)
+  telefon String @default("")
+  adresse String @default("")
+  plz     String @default("")
+  ort     String @default("")
+  website String @default("")
 
   // Bewertung (auto, jeder Lauf frischt sie auf)
-  segment     String @default("")           // "1 – Heiß (keine Website)" …
-  leadScore   Int    @default(0)            // hoeher = mehr Maengel = heisser Lead
-  grund       String @default("")           // Hauptmangel
-  designScore String @default("")           // KI-Design-Urteil 1–10 (leer, wenn ohne KI)
-  aufhaenger  String @default("")           // fertiger Gespraechseinstieg
+  segment     String @default("") // "1 – Heiß (keine Website)" …
+  leadScore   Int    @default(0) // hoeher = mehr Maengel = heisser Lead
+  grund       String @default("") // Hauptmangel
+  designScore String @default("") // KI-Design-Urteil 1–10 (leer, wenn ohne KI)
+  aufhaenger  String @default("") // fertiger Gespraechseinstieg
 
   // CRM / manuell (Sync fasst diese Felder NIE an)
-  status         String    @default("neu")   // neu | kontaktiert | interesse | kein_interesse | termin | erledigt
-  ansprechpartner String   @default("")
-  kontaktiertAm  DateTime?                    // gesetzt beim Abhaken
-  reaktion       String    @default("")
-  wiedervorlage  DateTime?
-  notiz          String    @default("")
+  status          String    @default("neu") // neu | kontaktiert | interesse | kein_interesse | termin | erledigt
+  ansprechpartner String    @default("")
+  kontaktiertAm   DateTime? // gesetzt beim Abhaken
+  reaktion        String    @default("")
+  wiedervorlage   DateTime?
+  notiz           String    @default("")
 
   // Meta
-  quellen        String    @default("")       // "gelbeseiten,google"
-  zuerstGesehen  DateTime  @default(now())
-  zuletztGesehen DateTime  @default(now())
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  quellen        String   @default("") // "gelbeseiten,google"
+  zuerstGesehen  DateTime @default(now())
+  zuletztGesehen DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   // Verknuepfte Kontakt-Vorbereitung (optional, 1:1) — im Bereich Akquise
   contactPrep ContactPrep?
@@ -130,24 +130,24 @@ model Prospect {
 // diese Tabelle, fuehrt die Suche aus, schreibt Fortschritt zurueck und
 // spuelt am Ende die Prospects ein. Vercel selbst fuehrt nichts aus.
 model SearchRequest {
-  id             String    @id @default(cuid())
-  branche        String                        // eine Branche je Auftrag
-  location       String                        // Ort oder PLZ
-  radiusKm       Float     @default(15)
-  quellen        String    @default("gelbeseiten,google,handwerk,branchenportale,social")
-  limit          Int       @default(30)
-  mitScreenshot  Boolean   @default(true)
-  mitKi          Boolean   @default(true)
-  verifyWebsites Boolean   @default(true)
+  id             String  @id @default(cuid())
+  branche        String // eine Branche je Auftrag
+  location       String // Ort oder PLZ
+  radiusKm       Float   @default(15)
+  quellen        String  @default("gelbeseiten,google,handwerk,branchenportale,social")
+  limit          Int     @default(30)
+  mitScreenshot  Boolean @default(true)
+  mitKi          Boolean @default(true)
+  verifyWebsites Boolean @default(true)
 
-  status       String    @default("angefragt") // angefragt | laeuft | fertig | fehler
-  progress     String    @default("")           // letzte Fortschrittsmeldung des Runners
-  resolvedOrte String    @default("")           // aufgeloeste Umkreis-Orte (kommagetrennt)
-  newCount     Int?                             // neu hinzugekommene Prospects
-  totalCount   Int?                             // Prospects der Branche danach insgesamt
-  error        String    @default("")
+  status       String @default("angefragt") // angefragt | laeuft | fertig | fehler
+  progress     String @default("") // letzte Fortschrittsmeldung des Runners
+  resolvedOrte String @default("") // aufgeloeste Umkreis-Orte (kommagetrennt)
+  newCount     Int? // neu hinzugekommene Prospects
+  totalCount   Int? // Prospects der Branche danach insgesamt
+  error        String @default("")
 
-  requestedBy String?                           // Username, der die Suche gestartet hat
+  requestedBy String? // Username, der die Suche gestartet hat
   createdAt   DateTime  @default(now())
   startedAt   DateTime?
   finishedAt  DateTime?
@@ -157,7 +157,7 @@ model SearchRequest {
 
 // Einfacher Schluessel-Wert-Speicher fuer editierbare Texte (z. B. Telefon-Skript)
 model AppText {
-  id        String   @id                     // z. B. "telefon-skript"
+  id        String   @id // z. B. "telefon-skript"
   value     String   @default("")
   updatedAt DateTime @updatedAt
 }
@@ -174,14 +174,14 @@ model Todo {
 // Offener Auftrag / Projekt (voll funktionsfaehig, in der Datenbank gespeichert)
 model Order {
   id           String    @id @default(cuid())
-  title        String                         // Kurztitel des Auftrags
-  customerName String    @default("")         // Kunde
-  description  String    @default("")         // Beschreibung / Notizen
-  status       String    @default("offen")    // offen | in_arbeit | wartet | erledigt
-  priority     String    @default("normal")   // niedrig | normal | hoch
-  value        Float     @default(0)          // Auftragswert netto (optional)
-  progress     Int       @default(0)          // Fortschritt 0–100 %
-  dueDate      DateTime?                       // Frist (optional)
+  title        String // Kurztitel des Auftrags
+  customerName String    @default("") // Kunde
+  description  String    @default("") // Beschreibung / Notizen
+  status       String    @default("offen") // offen | in_arbeit | wartet | erledigt
+  priority     String    @default("normal") // niedrig | normal | hoch
+  value        Float     @default(0) // Auftragswert netto (optional)
+  progress     Int       @default(0) // Fortschritt 0–100 %
+  dueDate      DateTime? // Frist (optional)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 }
@@ -189,52 +189,52 @@ model Order {
 // Paket / Leistungsposition – editierbar im Tool, NICHT im Code hart codiert
 model Package {
   id           String   @id @default(cuid())
-  name         String                        // z. B. "Landingpage (1 Seite)"
-  description  String   @default("")         // Kurzbeschreibung
-  defaultPrice Float    @default(0)          // Standard-Einzelpreis netto in Euro
-  active       Boolean  @default(true)       // Inaktive Pakete tauchen im Formular nicht auf
-  sortOrder    Int      @default(0)          // Reihenfolge in der Liste
+  name         String // z. B. "Landingpage (1 Seite)"
+  description  String   @default("") // Kurzbeschreibung
+  defaultPrice Float    @default(0) // Standard-Einzelpreis netto in Euro
+  active       Boolean  @default(true) // Inaktive Pakete tauchen im Formular nicht auf
+  sortOrder    Int      @default(0) // Reihenfolge in der Liste
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
 
 // Ein erstelltes Angebot (Kopf-Daten + Kunde) – bildet den Verlauf
 model Offer {
-  id              String   @id @default(cuid())
-  number          String   @unique           // Angebotsnummer, z. B. ANG-2026-001
-  date            DateTime @default(now())    // Angebotsdatum
-  validUntil      DateTime                    // "gueltig bis" als konkretes Datum
+  id         String   @id @default(cuid())
+  number     String   @unique // Angebotsnummer, z. B. ANG-2026-001
+  date       DateTime @default(now()) // Angebotsdatum
+  validUntil DateTime // "gueltig bis" als konkretes Datum
 
   // Kundendaten (Empfaenger des Angebots)
-  customerCompany String                      // Firmen- oder Personenname (Pflicht)
-  customerContact String   @default("")       // Ansprechpartner
-  customerStreet  String   @default("")       // Strasse + Hausnummer
-  customerZip     String   @default("")       // PLZ
-  customerCity    String   @default("")       // Ort
-  customerEmail   String   @default("")       // E-Mail (optional)
-  customerPhone   String   @default("")       // Telefon (optional)
+  customerCompany String // Firmen- oder Personenname (Pflicht)
+  customerContact String @default("") // Ansprechpartner
+  customerStreet  String @default("") // Strasse + Hausnummer
+  customerZip     String @default("") // PLZ
+  customerCity    String @default("") // Ort
+  customerEmail   String @default("") // E-Mail (optional)
+  customerPhone   String @default("") // Telefon (optional)
 
-  notes           String   @default("")       // optionales Freitext-Notizfeld fuers PDF
-  total           Float    @default(0)         // berechnete Gesamtsumme netto
-  status          String   @default("offen")   // offen | angenommen | abgelehnt
+  notes  String @default("") // optionales Freitext-Notizfeld fuers PDF
+  total  Float  @default(0) // berechnete Gesamtsumme netto
+  status String @default("offen") // offen | angenommen | abgelehnt
 
-  items           OfferItem[]                  // die einzelnen Positionen
-  lead            Lead?                        // Anfrage, aus der dieses Angebot entstand (falls automatisch)
+  items OfferItem[] // die einzelnen Positionen
+  lead  Lead? // Anfrage, aus der dieses Angebot entstand (falls automatisch)
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Eine einzelne Position innerhalb eines Angebots
 model OfferItem {
   id        String   @id @default(cuid())
-  offerId   String                            // gehoert zu welchem Angebot
+  offerId   String // gehoert zu welchem Angebot
   offer     Offer    @relation(fields: [offerId], references: [id], onDelete: Cascade)
-  position  Int                               // laufende Pos.-Nr. (1, 2, 3, ...)
-  label     String                            // Bezeichnung der Leistung
-  quantity  Float    @default(1)              // Menge
-  unitPrice Float    @default(0)              // Einzelpreis netto (ggf. ueberschrieben)
-  lineTotal Float    @default(0)              // Menge * Einzelpreis
+  position  Int // laufende Pos.-Nr. (1, 2, 3, ...)
+  label     String // Bezeichnung der Leistung
+  quantity  Float    @default(1) // Menge
+  unitPrice Float    @default(0) // Einzelpreis netto (ggf. ueberschrieben)
+  lineTotal Float    @default(0) // Menge * Einzelpreis
   createdAt DateTime @default(now())
 }
 
@@ -244,44 +244,44 @@ model OfferItem {
 // zu Offer/Order: die Kunden-/Positionsdaten werden KOPIERT, damit die Rechnung
 // unabhaengig bestehen bleibt (und der Diff an Offer/Order minimal ist).
 model Invoice {
-  id              String   @id @default(cuid())
-  number          String   @unique           // Rechnungsnummer, z. B. RE-2026-001
-  date            DateTime @default(now())    // Rechnungsdatum
-  dueDate         DateTime                    // Faelligkeit (zahlbar bis)
+  id      String   @id @default(cuid())
+  number  String   @unique // Rechnungsnummer, z. B. RE-2026-001
+  date    DateTime @default(now()) // Rechnungsdatum
+  dueDate DateTime // Faelligkeit (zahlbar bis)
 
   // Kundendaten (Empfaenger der Rechnung)
-  customerCompany String                      // Firmen- oder Personenname (Pflicht)
-  customerContact String   @default("")       // Ansprechpartner
-  customerStreet  String   @default("")       // Strasse + Hausnummer
-  customerZip     String   @default("")       // PLZ
-  customerCity    String   @default("")       // Ort
-  customerEmail   String   @default("")       // E-Mail (optional)
-  customerPhone   String   @default("")       // Telefon (optional)
+  customerCompany String // Firmen- oder Personenname (Pflicht)
+  customerContact String @default("") // Ansprechpartner
+  customerStreet  String @default("") // Strasse + Hausnummer
+  customerZip     String @default("") // PLZ
+  customerCity    String @default("") // Ort
+  customerEmail   String @default("") // E-Mail (optional)
+  customerPhone   String @default("") // Telefon (optional)
 
-  notes           String   @default("")       // optionales Freitext-Notizfeld fuers PDF
-  total           Float    @default(0)         // berechnete Gesamtsumme netto
-  status          String   @default("offen")   // offen | bezahlt | ueberfaellig
+  notes  String @default("") // optionales Freitext-Notizfeld fuers PDF
+  total  Float  @default(0) // berechnete Gesamtsumme netto
+  status String @default("offen") // offen | bezahlt | ueberfaellig
 
   // Herkunft (optional, nur als ID vermerkt – keine harte Relation)
-  orderId         String?                      // Auftrag, aus dem die Rechnung entstand
-  offerId         String?                      // Angebot, aus dem die Rechnung entstand
+  orderId String? // Auftrag, aus dem die Rechnung entstand
+  offerId String? // Angebot, aus dem die Rechnung entstand
 
-  items           InvoiceItem[]                // die einzelnen Positionen
+  items InvoiceItem[] // die einzelnen Positionen
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Eine einzelne Position innerhalb einer Rechnung (analog OfferItem)
 model InvoiceItem {
   id        String   @id @default(cuid())
-  invoiceId String                            // gehoert zu welcher Rechnung
+  invoiceId String // gehoert zu welcher Rechnung
   invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  position  Int                               // laufende Pos.-Nr. (1, 2, 3, ...)
-  label     String                            // Bezeichnung der Leistung
-  quantity  Float    @default(1)              // Menge
-  unitPrice Float    @default(0)              // Einzelpreis netto
-  lineTotal Float    @default(0)              // Menge * Einzelpreis
+  position  Int // laufende Pos.-Nr. (1, 2, 3, ...)
+  label     String // Bezeichnung der Leistung
+  quantity  Float    @default(1) // Menge
+  unitPrice Float    @default(0) // Einzelpreis netto
+  lineTotal Float    @default(0) // Menge * Einzelpreis
   createdAt DateTime @default(now())
 
   @@index([invoiceId])
@@ -294,29 +294,36 @@ model InvoiceItem {
 // unabhaengig vom Prospect bestehen bleiben.
 model ContactPrep {
   id         String    @id @default(cuid())
-  prospectId String?   @unique                 // Herkunft aus der Lead-Liste (optional, 1:1)
+  prospectId String?   @unique // Herkunft aus der Lead-Liste (optional, 1:1)
   prospect   Prospect? @relation(fields: [prospectId], references: [id], onDelete: SetNull)
 
   // Firmen- + Kontaktdaten (aus Prospect kopiert oder manuell erfasst)
-  firma           String                        // Firmenname (Pflicht)
-  ort             String   @default("")
-  telefon         String   @default("")
-  email           String   @default("")         // Prospect hat keine Mail -> hier manuell ergaenzt
-  website         String   @default("")
-  ansprechpartner String   @default("")
+  firma           String // Firmenname (Pflicht)
+  branche         String @default("") // z. B. "heizung-sanitaer" (aus Prospect kopiert) — fuer Filter + Sammel-Entwuerfe
+  ort             String @default("")
+  telefon         String @default("")
+  email           String @default("") // Prospect hat keine Mail -> hier manuell ergaenzt
+  website         String @default("")
+  ansprechpartner String @default("")
 
   // Analyse / Planung
-  websiteStatus       String @default("unbekannt") // keine | veraltet | okay | unbekannt
-  websiteMaengel      String @default("")           // Freitext: was ist an der Website falsch/fehlt
-  empfohleneLeistungen String @default("")          // kommagetrennte Leistungen (aus Paketen + frei)
-  kanal               String @default("telefon")    // telefon | mail | beide (bevorzugter Erstkontakt)
+  websiteStatus        String @default("unbekannt") // keine | veraltet | okay | unbekannt
+  websiteMaengel       String @default("") // Freitext: was ist an der Website falsch/fehlt
+  empfohleneLeistungen String @default("") // kommagetrennte Leistungen (aus Paketen + frei)
+  kanal                String @default("telefon") // telefon | mail | beide (bevorzugter Erstkontakt)
 
-  status  String @default("offen")                  // offen | vorbereitet | kontaktiert
-  notiz   String @default("")                       // freie Notizen fuers Gespraech
+  status String @default("offen") // offen | vorbereitet | kontaktiert
+  notiz  String @default("") // freie Notizen fuers Gespraech
 
-  erstelltVon String?                               // Username, der die Vorbereitung angelegt hat
+  // E-Mail-Akquise: Zeitpunkt, an dem der Gmail-Entwurf (info@) erstellt wurde,
+  // und — sobald ueber den Sent-Abgleich erkannt — der Versandzeitpunkt.
+  mailEntwurfAm  DateTime? // Sammel-Entwurf im info@-Postfach erstellt
+  mailGesendetAm DateTime? // per Gmail-Sent-Abgleich als versendet erkannt
+
+  erstelltVon String? // Username, der die Vorbereitung angelegt hat
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([status])
+  @@index([branche])
 }

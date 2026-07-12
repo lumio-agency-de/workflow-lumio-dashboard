@@ -11,6 +11,7 @@ import {
   Target,
   Radar,
   ClipboardList,
+  MailCheck,
   TrendingUp,
   Receipt,
   BarChart3,
@@ -51,6 +52,7 @@ export const NAV: NavEntry[] = [
     children: [
       { href: "/leads", label: "Leads", icon: Target },
       { href: "/kontakt-vorbereitung", label: "Kontakt-Vorbereitung", icon: ClipboardList },
+      { href: "/kontaktiert", label: "Kontaktiert", icon: MailCheck },
     ],
   },
   {

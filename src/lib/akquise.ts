@@ -32,6 +32,38 @@ export function brancheLabel(key: string): string {
   return BRANCHEN.find((b) => b.key === key)?.label ?? key;
 }
 
+// HTML-Signatur des allgemeinen info@-Postfachs (Vorlage aus
+// lumio/signaturen/signatur-info.html). Wird unter jeden Akquise-Entwurf gesetzt.
+export const INFO_SIGNATUR_HTML = `
+<table cellpadding="0" cellspacing="0" style="font-family: Arial, Helvetica, sans-serif; border-collapse:collapse; margin-top:22px;">
+  <tr>
+    <td style="padding-right:18px; border-right:2px solid #9cc4e6; vertical-align:middle;">
+      <img src="https://lumio-agency.de/assets/logo-lockup.png" width="150" alt="Lumio" style="display:block; border:0;">
+    </td>
+    <td style="padding-left:18px; vertical-align:middle;">
+      <div style="font-size:15px; font-weight:bold; color:#0a0f18;">Lumio</div>
+      <div style="font-size:12px; color:#6c7d92; margin-top:2px;">Web &amp; AI Agency · Aidlingen</div>
+      <div style="font-size:12px; color:#333333; margin-top:10px; line-height:19px;">
+        E-Mail: <a href="mailto:info@lumio-agency.de" style="color:#333333; text-decoration:none;">info@lumio-agency.de</a><br>
+        Web: <a href="https://lumio-agency.de" style="color:#4a7fa8; text-decoration:none;">lumio-agency.de</a>
+      </div>
+    </td>
+  </tr>
+</table>`;
+
+// Reinen Mailtext (Absaetze durch Leerzeilen) in schlichtes HTML wandeln und
+// die info@-Signatur anhaengen – fertig fuer einen Gmail-Entwurf.
+export function erstkontaktMailHtml(text: string): string {
+  const escape = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const absaetze = text
+    .trim()
+    .split(/\n\s*\n/)
+    .map((abs) => `<p style="margin:0 0 12px;">${escape(abs).replace(/\n/g, "<br>")}</p>`)
+    .join("");
+  return `<div style="font-family: Arial, Helvetica, sans-serif; font-size:14px; color:#1a1a1a; line-height:1.55;">${absaetze}${INFO_SIGNATUR_HTML}</div>`;
+}
+
 // Anzeige-Infos je CRM-Status eines Prospects (Farben passend zu den
 // CallNote-Outcomes im Telefon-Bereich, damit es sich konsistent anfuehlt).
 export const PROSPECT_STATUS: {
