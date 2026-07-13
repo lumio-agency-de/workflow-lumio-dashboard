@@ -92,51 +92,52 @@ export type ErstkontaktInput = {
 
 export type ErstkontaktMail = { subject: string; body: string };
 
-// Fester Betreff-Pool: Pain als Frage – sticht ins Auge, behauptet aber nichts
-// Konkretes (dieselbe "andeuten statt behaupten"-Linie wie im Mailtext). Die KI
-// darf NUR aus diesem Pool waehlen, damit keine Ausreisser-Betreffs entstehen.
-export const BETREFF_POOL = [
-  "Verschenken Sie online gerade Anfragen?",
-  "Werden Sie gefunden – oder Ihr Wettbewerber?",
-] as const;
+// Absender-Telefonnummer (Miko) als Alternative zum Online-Termin – aus der
+// verbindlichen Akquise-Vorlage (Follow-up nach Anrufversuch).
+const AKQUISE_TELEFON = "0176 6108 1235";
 
 export async function draftErstkontaktMail(
   input: ErstkontaktInput
 ): Promise<ErstkontaktMail> {
   const absender = input.absender?.trim() || "Miko Brüll";
-  const ort = input.ort?.trim();
-  const ortTeil = ort ? ` aus ${ort}` : "";
   const keineWebsite = input.websiteStatus === "keine";
 
-  // Betreff passend zum Fall: ohne Website zieht der "gefunden werden"-Betreff,
-  // sonst der "Anfragen verschenken"-Betreff.
-  const subject = keineWebsite ? BETREFF_POOL[1] : BETREFF_POOL[0];
+  // Betreff nach Vorlage. Ein konkreter Mangel kommt NUR ueber die KI (aus der
+  // gepruefen Notiz); die Fallback-Vorlage bleibt bewusst neutral.
+  const subject = keineWebsite
+    ? "Hinweis zu Ihrem Online-Auftritt"
+    : "Kurzer Hinweis zu Ihrer Website";
 
-  // Fallback-Vorlagen ohne KI (funktionieren immer). Deuten an statt zu
-  // behaupten; Ziel ist ein kurzer Online-Termin (Zoom), kein Anruf.
-  const bodyA = `Guten Tag,
+  // Fallback-Vorlagen ohne KI. Ton der verbindlichen Vorlage: Follow-up nach
+  // Anrufversuch, foermlich ("Sehr geehrte …"), EIN Aufhaenger, Ziel kurzer
+  // Online-Termin (Zoom), Rest fuers Gespraech. Ohne gepruefte Notiz wird KEIN
+  // konkreter Mangel behauptet.
+  const bodyMitWebsite = `Sehr geehrte Damen und Herren,
 
-als Betrieb${ortTeil} leben Sie von Kundschaft aus der Region – und die schaut heute fast immer zuerst online, bevor sie anruft. Genau da bin ich auf Sie aufmerksam geworden.
+soeben habe ich versucht, Sie telefonisch zu erreichen – leider ohne Erfolg.
 
-Beim Blick auf Ihren Auftritt sind mir ein paar Punkte aufgefallen, mit denen Sie mit wenig Aufwand mehr Anfragen bekommen könnten. Statt das lang zu beschreiben, zeige ich es Ihnen lieber direkt: In einem kurzen Online-Termin (10–15 Minuten per Zoom) gehe ich Ihren Auftritt mit Ihnen durch und zeige konkret, was sich verbessern lässt – und wie eine moderne Website von Lumio für Sie aussehen könnte.
+Der Anlass meines Anrufs: Mir sind bei Ihrem Online-Auftritt ein, zwei Punkte aufgefallen, mit denen Sie mit wenig Aufwand mehr aus Ihrer Website herausholen könnten. Ich wollte Sie kurz darauf aufmerksam machen, da dies vielen Betrieben zunächst gar nicht auffällt.
 
-Hätten Sie diese Woche Zeit für einen kurzen Online-Termin? Nennen Sie mir gern zwei oder drei Zeitfenster, die Ihnen entgegenkommen – ich richte mich ganz nach Ihnen.
+Gerne zeige ich Ihnen das in einem kurzen Online-Termin – dort können wir ganz unkompliziert gemeinsam auf Ihre Website schauen und offen sprechen. Hätten Sie diese Woche ein paar Minuten dafür? Alternativ erreichen Sie mich direkt unter ${AKQUISE_TELEFON}.
 
-Beste Grüße
+Mit freundlichen Grüßen
 ${absender} · Lumio`;
 
-  const bodyB = `Guten Tag,
+  const bodyOhneWebsite = `Sehr geehrte Damen und Herren,
 
-als Betrieb${ortTeil} gewinnen Sie Ihre Kunden vermutlich vor allem über Empfehlung und Telefon. Mir ist aufgefallen, dass Sie online bisher kaum zu finden sind – und dabei geht einiges verloren, weil immer mehr Leute zuerst googeln.
+soeben habe ich versucht, Sie telefonisch zu erreichen – leider ohne Erfolg.
 
-Eine schlanke, moderne Website ändert das schnell: Sie werden gefunden, wirken professionell, und Interessenten können direkt Kontakt aufnehmen. Statt das lang zu beschreiben, zeige ich es Ihnen lieber direkt: In einem kurzen Online-Termin (10–15 Minuten per Zoom) zeige ich Ihnen, wie das für Sie aussehen könnte.
+Der Anlass meines Anrufs: Mir ist aufgefallen, dass Ihr Betrieb online bisher kaum zu finden ist – dabei bleibt einiges an Anfragen liegen, weil immer mehr Kunden zuerst online suchen. Ich wollte Sie kurz darauf aufmerksam machen.
 
-Hätten Sie diese Woche Zeit für einen kurzen Online-Termin? Nennen Sie mir gern zwei oder drei Zeitfenster, die Ihnen entgegenkommen – ich richte mich ganz nach Ihnen.
+Gerne zeige ich Ihnen in einem kurzen Online-Termin, wie ein moderner Auftritt für Sie aussehen könnte – ganz unkompliziert und offen. Hätten Sie diese Woche ein paar Minuten dafür? Alternativ erreichen Sie mich direkt unter ${AKQUISE_TELEFON}.
 
-Beste Grüße
+Mit freundlichen Grüßen
 ${absender} · Lumio`;
 
-  const vorlage: ErstkontaktMail = { subject, body: keineWebsite ? bodyB : bodyA };
+  const vorlage: ErstkontaktMail = {
+    subject,
+    body: keineWebsite ? bodyOhneWebsite : bodyMitWebsite,
+  };
 
   if (!aiConfigured) return vorlage;
 
@@ -144,37 +145,33 @@ ${absender} · Lumio`;
 
   try {
     const antwort = await askKI(
-      `Du bist die Akquise-Assistenz der Webagentur Lumio (Websites & Design, Sitz Aidlingen). Schreibe eine kurze, persönliche Kalt-Erstkontakt-Mail auf Deutsch (per Sie) an einen kleinen oder mittelständischen Betrieb.
+      `Du bist die Akquise-Assistenz der Webagentur Lumio (Websites & Design, Aidlingen). Verfasse eine kurze, professionelle Akquise-Mail auf Deutsch (per Sie). Es ist ein FOLLOW-UP nach einem erfolglosen Telefonanruf – seriös und distanziert, KEIN lockerer Plauderton, kein Verkaufsdruck, keine Ausrufezeichen, keine Emojis.
 
-FESTES GERÜST – halte dich exakt an diesen Aufbau und Ton:
-1. Anrede: "Guten Tag Herr/Frau <Nachname>," NUR wenn ein Ansprechpartner mit eindeutigem Nachnamen genannt ist und die Anrede (Herr/Frau) zweifelsfrei passt; sonst schlicht "Guten Tag,".
-2. Regionaler Aufhänger: ein Satz, der Branche und Ort aufgreift (Kunden schauen heute zuerst online), und der mit genau dem Satz endet: "Genau da bin ich auf Sie aufmerksam geworden." Den Firmennamen NICHT nennen.
-3. Andeutung + Angebot: deute an, dass dir "ein paar Punkte" aufgefallen sind, mit denen der Betrieb mit wenig Aufwand mehr Anfragen bekäme – OHNE einen einzigen konkreten Mangel zu behaupten. Biete an, es in einem kurzen Online-Termin (10–15 Minuten per Zoom) direkt zu zeigen und wie eine moderne Website von Lumio aussehen könnte.
-4. Handlungsaufforderung: frage nach einem kurzen Online-Termin diese Woche und bitte um zwei, drei Zeitfenster. Verwende NICHT das Wort "passt".
-5. Gruß: "Beste Grüße", in der nächsten Zeile "<Absender> · Lumio".
+FESTES GERÜST – halte dich exakt daran:
+1. Betreff: "Hinweis zu Ihrer Website – <sehr kurzer, konkreter Anlass, max. 3–4 Wörter>". Liegt KEIN konkreter, geprüfter Mangel vor: "Kurzer Hinweis zu Ihrer Website". Hat der Betrieb KEINE Website: "Hinweis zu Ihrem Online-Auftritt".
+2. Anrede: "Sehr geehrter Herr <Nachname>," bzw. "Sehr geehrte Frau <Nachname>," NUR wenn Ansprechpartner UND Anrede (Herr/Frau) zweifelsfrei bekannt sind; sonst "Sehr geehrte Damen und Herren,".
+3. Absatz 1 – wörtlich genau: "soeben habe ich versucht, Sie telefonisch zu erreichen – leider ohne Erfolg."
+4. Absatz 2 (Anlass): Beginne mit "Der Anlass meines Anrufs: Mir ist aufgefallen, dass " und nenne GENAU EINEN konkreten Punkt AUS DER INTERNEN NOTIZ, formuliert als das, was ein Besucher merkt (z. B. dass die Seite auf dem Smartphone schlecht dargestellt wird). Schließe mit: "Ich wollte Sie kurz darauf hinweisen, da dies vielen Betrieben zunächst gar nicht auffällt." — Ist die interne Notiz LEER oder unklar, behaupte KEINEN konkreten Mangel; schreibe stattdessen: "Mir sind bei Ihrem Online-Auftritt ein, zwei Punkte aufgefallen, mit denen Sie mit wenig Aufwand mehr aus Ihrer Website herausholen könnten." Bei Website-Status "keine": stattdessen darauf eingehen, dass der Betrieb online kaum zu finden ist.
+5. Absatz 3 (Angebot, Ziel Zoom): "Gerne zeige ich Ihnen das in einem kurzen Online-Termin – dort können wir ganz unkompliziert gemeinsam auf Ihre Website schauen und offen sprechen." Danach eine niederschwellige Frage nach ein paar Minuten diese Woche (das Wort "passt" NICHT verwenden) und als Alternative die Telefonnummer ${AKQUISE_TELEFON}.
+6. Gruß: "Mit freundlichen Grüßen", nächste Zeile "${absender} · Lumio".
 
 HARTE REGELN:
-- Niemals konkrete Mängel behaupten (kein "Ihnen fehlt X", kein "Kein Impressum/HTTPS" o. Ä.). Die interne Analyse-Notiz dient NUR zur Wahl von Variante und Ton, sie darf NICHT als Aussage in der Mail auftauchen.
-- Wenn der Website-Status "keine" ist: nutze die Variante "online bisher kaum zu finden" statt "Ihr Auftritt".
-- ~90–120 Wörter, freundlich und professionell, kein Verkaufsdruck, keine Ausrufezeichen-Ketten, keine Emojis, keine Platzhalter in eckigen Klammern.
-- Betreff: wähle GENAU EINEN aus dem vorgegebenen Pool und gib ihn wörtlich zurück – erfinde keinen eigenen.
+- NUR EIN Aufhänger, kurz. Nichts vorab erklären, kein Preis, KEINE Demo-/Vorschau-Links – der Rest bleibt fürs Gespräch.
+- Niemals einen Mangel behaupten, der nicht in der internen Notiz steht.
+- ~90–120 Wörter, keine Platzhalter in eckigen Klammern.
 
-Antworte AUSSCHLIESSLICH mit gültigem JSON in genau diesem Format, ohne weiteren Text:
-{"subject":"<einer aus dem Pool>","body":"<Mailtext, \\n für Zeilenumbrüche>"}`,
+Antworte AUSSCHLIESSLICH mit gültigem JSON, ohne weiteren Text:
+{"subject":"...","body":"...mit \\n für Zeilenumbrüche..."}`,
       `Absender: ${absender}
+Telefonnummer für die Mail: ${AKQUISE_TELEFON}
 Firma: ${input.firma}
-Ort: ${ort || "unbekannt"}
+Ort: ${input.ort?.trim() || "unbekannt"}
 Branche: ${branche || "unbekannt"}
 Website-Status: ${input.websiteStatus || "unbekannt"}
-Interne Analyse-Notiz (NICHT wörtlich verwenden): ${input.websiteMaengel?.trim() || "—"}
-Passende Lumio-Leistungen (nur zur Orientierung): ${input.empfohleneLeistungen?.trim() || "moderne Website"}
+Interne Analyse-Notiz (einzige Quelle für den Aufhänger, nur EINEN Punkt verwenden): ${input.websiteMaengel?.trim() || "— (leer: keinen konkreten Mangel behaupten)"}
 Ansprechpartner: ${input.ansprechpartner?.trim() || "unbekannt"}
 
-Erlaubter Betreff-Pool (genau einen wörtlich wählen):
-- ${BETREFF_POOL[0]}
-- ${BETREFF_POOL[1]}
-
-Schreibe die Erstkontakt-Mail.`
+Schreibe die Follow-up-Mail.`
     );
 
     const jsonMatch = antwort.match(/\{[\s\S]*\}/);
@@ -182,11 +179,10 @@ Schreibe die Erstkontakt-Mail.`
     const parsed = JSON.parse(jsonMatch[0]) as Partial<ErstkontaktMail>;
     const body = parsed.body?.trim();
     if (!body) return vorlage;
-    // Betreff muss aus dem Pool stammen – sonst den berechneten Fallback nehmen.
-    const subjectOk =
-      !!parsed.subject &&
-      (BETREFF_POOL as readonly string[]).includes(parsed.subject.trim());
-    return { subject: subjectOk ? parsed.subject!.trim() : subject, body };
+    // Betreff muss dem Vorlagen-Muster folgen, sonst neutralen Fallback nehmen.
+    const s = parsed.subject?.trim();
+    const subjectOk = !!s && /^(Hinweis zu Ihre|Kurzer Hinweis zu Ihrer)/i.test(s);
+    return { subject: subjectOk ? s : subject, body };
   } catch {
     return vorlage;
   }
