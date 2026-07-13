@@ -60,22 +60,16 @@ async function main() {
       sortOrder: 1,
     },
     {
-      name: "Website mit Terminvereinbarungs-Funktion",
-      description: "Website inkl. Online-Terminbuchung.",
+      name: "Mehrseitige Website mit Kontaktoption",
+      description: "Mehrseitige Website inkl. Kontaktmöglichkeit.",
       defaultPrice: 890,
       sortOrder: 2,
-    },
-    {
-      name: "Website mit Shop-Funktion",
-      description: "Website inkl. einfachem Online-Shop.",
-      defaultPrice: 1490,
-      sortOrder: 3,
     },
     {
       name: "Zusatzposition: weitere Unterseite",
       description: "Je zusaetzliche Unterseite.",
       defaultPrice: 90,
-      sortOrder: 4,
+      sortOrder: 3,
     },
   ];
 
