@@ -96,17 +96,22 @@ export type ErstkontaktMail = { subject: string; body: string };
 // verbindlichen Akquise-Vorlage (Follow-up nach Anrufversuch).
 const AKQUISE_TELEFON = "0176 6108 1235";
 
+// Fester Betreff-Pool (Miko bevorzugt): Pain als Frage – sticht ins Auge zum
+// Oeffnen, behauptet aber nichts Konkretes. Die KI waehlt NUR aus diesem Pool.
+const BETREFF_POOL = [
+  "Verschenken Sie online gerade Anfragen?",
+  "Werden Sie gefunden – oder Ihr Wettbewerber?",
+] as const;
+
 export async function draftErstkontaktMail(
   input: ErstkontaktInput
 ): Promise<ErstkontaktMail> {
   const absender = input.absender?.trim() || "Miko Brüll";
   const keineWebsite = input.websiteStatus === "keine";
 
-  // Betreff nach Vorlage. Ein konkreter Mangel kommt NUR ueber die KI (aus der
-  // gepruefen Notiz); die Fallback-Vorlage bleibt bewusst neutral.
-  const subject = keineWebsite
-    ? "Hinweis zu Ihrem Online-Auftritt"
-    : "Kurzer Hinweis zu Ihrer Website";
+  // Betreff aus dem Pool: ohne Website der "gefunden werden"-Betreff, sonst der
+  // "Anfragen verschenken"-Betreff.
+  const subject = keineWebsite ? BETREFF_POOL[1] : BETREFF_POOL[0];
 
   // Fallback-Vorlagen ohne KI. Ton der verbindlichen Vorlage: Follow-up nach
   // Anrufversuch, foermlich ("Sehr geehrte …"), EIN Aufhaenger, Ziel kurzer
@@ -148,7 +153,7 @@ ${absender} · Lumio`;
       `Du bist die Akquise-Assistenz der Webagentur Lumio (Websites & Design, Aidlingen). Verfasse eine kurze, professionelle Akquise-Mail auf Deutsch (per Sie). Es ist ein FOLLOW-UP nach einem erfolglosen Telefonanruf – seriös und distanziert, KEIN lockerer Plauderton, kein Verkaufsdruck, keine Ausrufezeichen, keine Emojis.
 
 FESTES GERÜST – halte dich exakt daran:
-1. Betreff: "Hinweis zu Ihrer Website – <sehr kurzer, konkreter Anlass, max. 3–4 Wörter>". Liegt KEIN konkreter, geprüfter Mangel vor: "Kurzer Hinweis zu Ihrer Website". Hat der Betrieb KEINE Website: "Hinweis zu Ihrem Online-Auftritt".
+1. Betreff: wähle GENAU EINEN aus dem unten vorgegebenen Betreff-Pool und gib ihn wörtlich zurück – erfinde keinen eigenen.
 2. Anrede: "Sehr geehrter Herr <Nachname>," bzw. "Sehr geehrte Frau <Nachname>," NUR wenn Ansprechpartner UND Anrede (Herr/Frau) zweifelsfrei bekannt sind; sonst "Sehr geehrte Damen und Herren,".
 3. Absatz 1 – wörtlich genau: "soeben habe ich versucht, Sie telefonisch zu erreichen – leider ohne Erfolg."
 4. Absatz 2 (Anlass): Beginne mit "Der Anlass meines Anrufs: Mir ist aufgefallen, dass " und nenne GENAU EINEN konkreten Punkt AUS DER INTERNEN NOTIZ, formuliert als das, was ein Besucher merkt (z. B. dass die Seite auf dem Smartphone schlecht dargestellt wird). Schließe mit: "Ich wollte Sie kurz darauf hinweisen, da dies vielen Betrieben zunächst gar nicht auffällt." — Ist die interne Notiz LEER oder unklar, behaupte KEINEN konkreten Mangel; schreibe stattdessen: "Mir sind bei Ihrem Online-Auftritt ein, zwei Punkte aufgefallen, mit denen Sie mit wenig Aufwand mehr aus Ihrer Website herausholen könnten." Bei Website-Status "keine": stattdessen darauf eingehen, dass der Betrieb online kaum zu finden ist.
@@ -171,6 +176,10 @@ Website-Status: ${input.websiteStatus || "unbekannt"}
 Interne Analyse-Notiz (einzige Quelle für den Aufhänger, nur EINEN Punkt verwenden): ${input.websiteMaengel?.trim() || "— (leer: keinen konkreten Mangel behaupten)"}
 Ansprechpartner: ${input.ansprechpartner?.trim() || "unbekannt"}
 
+Erlaubter Betreff-Pool (genau einen wörtlich wählen):
+- ${BETREFF_POOL[0]}
+- ${BETREFF_POOL[1]}
+
 Schreibe die Follow-up-Mail.`
     );
 
@@ -179,9 +188,9 @@ Schreibe die Follow-up-Mail.`
     const parsed = JSON.parse(jsonMatch[0]) as Partial<ErstkontaktMail>;
     const body = parsed.body?.trim();
     if (!body) return vorlage;
-    // Betreff muss dem Vorlagen-Muster folgen, sonst neutralen Fallback nehmen.
+    // Betreff muss aus dem Pool stammen, sonst den berechneten Fallback nehmen.
     const s = parsed.subject?.trim();
-    const subjectOk = !!s && /^(Hinweis zu Ihre|Kurzer Hinweis zu Ihrer)/i.test(s);
+    const subjectOk = !!s && (BETREFF_POOL as readonly string[]).includes(s);
     return { subject: subjectOk ? s : subject, body };
   } catch {
     return vorlage;
