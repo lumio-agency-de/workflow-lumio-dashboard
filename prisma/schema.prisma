@@ -91,6 +91,7 @@ model Prospect {
   name    String // Firmenname
   branche String @default("") // z. B. "heizung-sanitaer" (Kategorie im leadgen)
   telefon String @default("")
+  email   String @default("") // vom leadgen erfasst (z. B. 11880) — Startwert fuer ContactPrep
   adresse String @default("")
   plz     String @default("")
   ort     String @default("")
