@@ -47,6 +47,26 @@ export type MailItem = {
   ownerAccountId?: string;
 };
 
+// Eine GESENDETE (ausgehende) E-Mail – fuer den Postausgang im Dashboard.
+// Anders als beim Posteingang interessiert hier der Empfaenger (To) und der
+// vollstaendige Nachrichtentext, damit man den Inhalt direkt im Dashboard liest
+// (ohne Google Workspace zu oeffnen).
+export type SentMailItem = {
+  id: string;
+  toName: string;
+  toEmail: string;
+  subject: string;
+  snippet: string;
+  body: string; // Volltext (Klartext) der gesendeten Mail
+  date: string; // ISO-Zeitstempel
+  // Aus welchem verbundenen Konto die Mail gesendet wurde (fuer die kombinierte Ansicht)
+  ownerUserId?: string;
+  ownerUsername?: string;
+  ownerName?: string;
+  ownerEmail?: string;
+  ownerAccountId?: string;
+};
+
 // Ergebnis-Huelle: sagt der Seite, ob echte Daten kommen oder Demo-Daten
 export type DataView<T> = {
   configured: boolean; // sind Google-Zugangsdaten hinterlegt?
