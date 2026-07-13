@@ -9,9 +9,9 @@ import { prisma } from "@/lib/prisma";
 import { googleConfigured } from "@/lib/env";
 import { getGoogleClientForAccount } from "@/lib/google/client";
 import { listUpcomingEvents } from "@/lib/google/calendar";
-import { listRecentMessages } from "@/lib/google/gmail";
+import { listRecentMessages, listSentMessages } from "@/lib/google/gmail";
 import { syncLeadsFromMails } from "@/lib/leads";
-import type { CalEvent, MailItem, DataView } from "@/lib/types";
+import type { CalEvent, MailItem, SentMailItem, DataView } from "@/lib/types";
 
 // Google-Abrufe sind der langsamste Teil jeder Seite. Kurze Zwischenspeicherung
 // (pro Konto) sorgt dafuer, dass schnelles Wechseln zwischen Seiten nicht jedes
@@ -42,6 +42,20 @@ async function fetchMailsCached(accountId: string) {
       return listRecentMessages(client, 20);
     },
     ["gmail-messages", accountId],
+    { revalidate: CACHE_SECONDS, tags: [`mail-${accountId}`] }
+  )();
+}
+
+async function fetchSentMailsCached(accountId: string) {
+  return unstable_cache(
+    async () => {
+      const client = await getGoogleClientForAccount(accountId);
+      if (!client) return [] as SentMailItem[];
+      return listSentMessages(client, 20);
+    },
+    ["gmail-sent", accountId],
+    // Beim Versenden wird `mail-<accountId>` geleert – denselben Tag nutzen,
+    // damit eine gerade gesendete Mail sofort im Postausgang auftaucht.
     { revalidate: CACHE_SECONDS, tags: [`mail-${accountId}`] }
   )();
 }
@@ -178,6 +192,55 @@ async function loadMails(): Promise<DataView<MailItem[]>> {
     visibleAccounts.map(async (acc) => {
       try {
         const mails = await fetchMailsCached(acc.accountId);
+        return mails.map((m) => ({
+          ...m,
+          ownerUserId: acc.userId,
+          ownerUsername: acc.username,
+          ownerName: acc.name,
+          ownerEmail: acc.email,
+          ownerAccountId: acc.accountId,
+        }));
+      } catch {
+        return [];
+      }
+    })
+  );
+
+  const data = perAccount
+    .flat()
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  return { configured: true, connected: true, selfConnected, demo: false, data, accounts };
+}
+
+// Postausgang-Ansicht: gesendete Mails der sichtbaren Konten (eigenes Postfach +
+// info@) zusammengefuehrt, mit Volltext. Gleicher Sichtbarkeits-Ausschnitt wie
+// der Posteingang.
+export async function getSentMailView(): Promise<DataView<SentMailItem[]>> {
+  const { members, accountRows } = await teamData();
+
+  const session = await auth();
+  const ownUsername = session?.user?.username;
+  const selfConnected = members.some((m) => m.username === ownUsername && m.connected);
+
+  const accounts = members.filter(
+    (m) => m.username === ownUsername || m.username === "info"
+  );
+  const visibleAccounts = accountRows.filter(
+    (a) => a.username === ownUsername || a.username === "info"
+  );
+
+  if (!googleConfigured) {
+    return { configured: false, connected: false, selfConnected, demo: true, data: [], accounts };
+  }
+  if (visibleAccounts.length === 0) {
+    return { configured: true, connected: false, selfConnected, demo: true, data: [], accounts };
+  }
+
+  const perAccount = await Promise.all(
+    visibleAccounts.map(async (acc) => {
+      try {
+        const mails = await fetchSentMailsCached(acc.accountId);
         return mails.map((m) => ({
           ...m,
           ownerUserId: acc.userId,

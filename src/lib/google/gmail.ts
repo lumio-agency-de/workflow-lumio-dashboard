@@ -1,6 +1,6 @@
 // Gmail-Funktionen (Posteingang lesen, antworten). Nur serverseitig.
 import { google } from "googleapis";
-import type { MailItem } from "@/lib/types";
+import type { MailItem, SentMailItem } from "@/lib/types";
 import { categorizeEmail } from "@/lib/demo-data";
 
 // Client-Typ direkt aus googleapis ableiten (verhindert Typkonflikte)
@@ -61,6 +61,63 @@ export async function listRecentMessages(
       date: dateHeader ? new Date(dateHeader).toISOString() : new Date().toISOString(),
       unread,
       category: categorizeEmail(subject, from.email),
+    };
+  });
+}
+
+// Klartext-Koerper aus einer (ggf. verschachtelten) Gmail-Nachricht ziehen.
+function extractPlainBody(payload: unknown): string {
+  let body = "";
+  const walk = (part?: {
+    mimeType?: string | null;
+    body?: { data?: string | null };
+    parts?: unknown[];
+  }) => {
+    if (!part) return;
+    if (part.mimeType === "text/plain" && part.body?.data) {
+      body += Buffer.from(part.body.data, "base64").toString("utf8");
+    }
+    (part.parts as (typeof part)[] | undefined)?.forEach(walk);
+  };
+  walk(payload as Parameters<typeof walk>[0]);
+  return body;
+}
+
+// Gesendete Mails (Ordner "Gesendet") mit vollem Text laden – fuer den
+// Postausgang im Dashboard. Zeigt Empfaenger (To), Betreff und Volltext, damit
+// der Inhalt direkt im Dashboard lesbar ist.
+export async function listSentMessages(
+  client: OAuthClient,
+  maxResults = 20
+): Promise<SentMailItem[]> {
+  const gmail = google.gmail({ version: "v1", auth: client });
+
+  const list = await gmail.users.messages.list({
+    userId: "me",
+    maxResults,
+    q: "in:sent",
+  });
+  const ids = (list.data.messages ?? []).map((m) => m.id).filter(Boolean) as string[];
+
+  const details = await Promise.all(
+    ids.map((id) => gmail.users.messages.get({ userId: "me", id, format: "full" }))
+  );
+
+  return details.map((d) => {
+    const msg = d.data;
+    const headers = msg.payload?.headers ?? [];
+    const to = parseFrom(header(headers, "To"));
+    const subject = header(headers, "Subject") || "(kein Betreff)";
+    const dateMs = msg.internalDate ? Number(msg.internalDate) : Date.now();
+    const body = extractPlainBody(msg.payload) || msg.snippet || "";
+    return {
+      id: msg.id ?? "",
+      toName: to.name,
+      toEmail: to.email,
+      subject,
+      snippet: msg.snippet ?? "",
+      body,
+      date: new Date(dateMs).toISOString(),
     };
   });
 }

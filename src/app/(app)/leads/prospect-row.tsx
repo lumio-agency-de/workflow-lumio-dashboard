@@ -144,9 +144,23 @@ export default function ProspectRow({ p }: { p: P }) {
 
         {/* Name + Meta */}
         <div className="min-w-0 flex-1">
-          <div className={"truncate text-sm font-medium " + (p.status === "erledigt" ? "text-muted line-through" : "text-ink")}>
+          {/* Name -> direkt eine Google-Suche (Name + Ort) oeffnen, um schnell
+              Telefonnummer, Oeffnungszeiten oder Website zu finden. */}
+          <a
+            href={
+              "https://www.google.com/search?q=" +
+              encodeURIComponent([p.name, p.ort].filter(Boolean).join(" "))
+            }
+            target="_blank"
+            rel="noreferrer"
+            title="Bei Google suchen"
+            className={
+              "block truncate text-sm font-medium underline-offset-2 transition-colors hover:text-accent hover:underline " +
+              (p.status === "erledigt" ? "text-muted line-through" : "text-ink")
+            }
+          >
             {p.name}
-          </div>
+          </a>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
             {p.ort && <span>{p.ort}</span>}
             {p.telefon && (
