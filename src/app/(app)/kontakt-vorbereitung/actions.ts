@@ -35,6 +35,7 @@ export async function addFromProspect(formData: FormData) {
       branche: p.branche,
       ort: p.ort,
       telefon: p.telefon,
+      email: p.email,
       website: p.website,
       ansprechpartner: p.ansprechpartner,
       // Mangel-Hinweis des Lead-Tools als Startpunkt uebernehmen
