@@ -35,22 +35,37 @@ export async function listUpcomingEvents(
   });
 }
 
-// Einen neuen Termin anlegen
+// Einen neuen Termin anlegen. Gibt die Event-ID des angelegten Termins zurueck
+// (oder null), damit Aufrufer den Termin spaeter gezielt bearbeiten/loeschen koennen.
+// Bei allDay werden start/end als Datum "YYYY-MM-DD" erwartet (Ganztagestermin,
+// end ist – wie von Google verlangt – exklusiv, also der Folgetag).
 export async function createCalendarEvent(
   client: OAuthClient,
-  input: { title: string; start: string; end: string; location?: string; description?: string }
-) {
+  input: {
+    title: string;
+    start: string;
+    end: string;
+    location?: string;
+    description?: string;
+    allDay?: boolean;
+  }
+): Promise<string | null> {
   const cal = google.calendar({ version: "v3", auth: client });
-  await cal.events.insert({
+  const res = await cal.events.insert({
     calendarId: "primary",
     requestBody: {
       summary: input.title,
       description: input.description,
       location: input.location,
-      start: { dateTime: new Date(input.start).toISOString() },
-      end: { dateTime: new Date(input.end).toISOString() },
+      start: input.allDay
+        ? { date: input.start }
+        : { dateTime: new Date(input.start).toISOString() },
+      end: input.allDay
+        ? { date: input.end }
+        : { dateTime: new Date(input.end).toISOString() },
     },
   });
+  return res.data.id ?? null;
 }
 
 // Einen bestehenden Termin bearbeiten

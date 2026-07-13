@@ -320,6 +320,11 @@ model ContactPrep {
   mailEntwurfAm  DateTime? // Sammel-Entwurf im info@-Postfach erstellt
   mailGesendetAm DateTime? // per Gmail-Sent-Abgleich als versendet erkannt
 
+  // Wiedervorlage: sobald die Firma auf "kontaktiert" wechselt, legen wir
+  // automatisch 3 Werktage spaeter einen Kalender-Termin an ("nochmal melden").
+  wiedervorlage        DateTime? // Zeitpunkt des angelegten Wiedervorlage-Termins (auch Dubletten-Schutz)
+  wiedervorlageEventId String? // Google-Kalender-Event-ID des Wiedervorlage-Termins (fuer spaeteres Loeschen)
+
   erstelltVon String? // Username, der die Vorbereitung angelegt hat
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

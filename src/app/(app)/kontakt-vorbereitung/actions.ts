@@ -4,6 +4,7 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { ensureWiedervorlage, entferneWiedervorlage } from "@/lib/akquise-wiedervorlage";
 
 // Nur eingeloggte Nutzer. Server-Actions sind offene POST-Endpunkte – ohne
 // diesen Wachposten koennte sie jeder unangemeldet aufrufen.
@@ -69,9 +70,11 @@ export async function addManual(formData: FormData) {
 
 // Eine Vorbereitung speichern (alle bearbeitbaren Felder).
 export async function updatePrep(formData: FormData) {
-  await requireSession();
+  const session = await requireSession();
   const id = String(formData.get("id") ?? "");
   if (!id) return;
+
+  const status = String(formData.get("status") ?? "offen");
 
   await prisma.contactPrep.update({
     where: { id },
@@ -86,18 +89,40 @@ export async function updatePrep(formData: FormData) {
       websiteMaengel: String(formData.get("websiteMaengel") ?? "").trim(),
       empfohleneLeistungen: String(formData.get("empfohleneLeistungen") ?? "").trim(),
       kanal: String(formData.get("kanal") ?? "telefon"),
-      status: String(formData.get("status") ?? "offen"),
+      status,
       notiz: String(formData.get("notiz") ?? "").trim(),
     },
   });
+
+  // Beim Wechsel auf "kontaktiert" (manuell) die Wiedervorlage im Kalender
+  // anlegen – 3 Werktage ab jetzt. Der Dubletten-Schutz in ensureWiedervorlage
+  // verhindert Mehrfach-Termine beim erneuten Speichern.
+  if (status === "kontaktiert" && session.user?.id) {
+    try {
+      await ensureWiedervorlage(id, session.user.id);
+    } catch {
+      /* optional – Speichern ist bereits erfolgt */
+    }
+  }
+
   revalidatePath("/kontakt-vorbereitung");
 }
 
 // Eine Vorbereitung loeschen.
 export async function deletePrep(formData: FormData) {
-  await requireSession();
+  const session = await requireSession();
   const id = String(formData.get("id") ?? "");
   if (!id) return;
+
+  // Zugehoerigen Wiedervorlage-Termin (falls vorhanden) best-effort mitloeschen.
+  const prep = await prisma.contactPrep.findUnique({
+    where: { id },
+    select: { wiedervorlageEventId: true },
+  });
+  if (prep?.wiedervorlageEventId && session.user?.id) {
+    await entferneWiedervorlage(prep.wiedervorlageEventId, session.user.id);
+  }
+
   await prisma.contactPrep.delete({ where: { id } });
   revalidatePath("/kontakt-vorbereitung");
 }

@@ -13,6 +13,7 @@ import { getInfoClient } from "@/lib/google/client";
 import { createDraft, listSentRecipients } from "@/lib/google/gmail";
 import { draftErstkontaktMail } from "@/lib/ai";
 import { erstkontaktMailHtml } from "@/lib/akquise";
+import { ensureWiedervorlage } from "@/lib/akquise-wiedervorlage";
 
 export type EntwuerfeErgebnis = {
   erstellt: number;
@@ -113,6 +114,13 @@ export async function syncKontaktiertMitGmail(
       where: { id: p.id },
       data: { status: "kontaktiert", mailGesendetAm: new Date(gesendetMs) },
     });
+    // Wiedervorlage 3 Werktage nach dem Versand im Kalender anlegen. Nie fatal:
+    // ein Kalenderfehler darf den Sent-Abgleich nicht abbrechen.
+    try {
+      await ensureWiedervorlage(p.id, fallbackUserId, new Date(gesendetMs));
+    } catch {
+      /* optional – Status-Wechsel ist bereits gespeichert */
+    }
     verschoben++;
   }
   return verschoben;
