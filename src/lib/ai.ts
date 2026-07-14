@@ -92,10 +92,6 @@ export type ErstkontaktInput = {
 
 export type ErstkontaktMail = { subject: string; body: string };
 
-// Absender-Telefonnummer (Miko) als Alternative zum Online-Termin – aus der
-// verbindlichen Akquise-Vorlage (Follow-up nach Anrufversuch).
-const AKQUISE_TELEFON = "0176 6108 1235";
-
 // Fester Betreff-Pool (Miko bevorzugt): Pain als Frage – sticht ins Auge zum
 // Oeffnen, behauptet aber nichts Konkretes. Die KI waehlt NUR aus diesem Pool.
 const BETREFF_POOL = [
@@ -116,27 +112,28 @@ export async function draftErstkontaktMail(
   const ort = input.ort?.trim();
   const ortTeil = ort ? ` aus ${ort}` : "";
 
-  // Fallback-Vorlagen ohne KI. E-Mail-first (KEIN Anrufversuch behaupten):
-  // ehrlicher Aufhaenger "auf Sie aufmerksam geworden", Ziel kurzer Online-
-  // Termin (Zoom). Ohne gepruefte Notiz wird KEIN konkreter Mangel behauptet.
+  // Fallback-Vorlagen ohne KI. E-Mail-first, NEUGIER statt Verkauf: andeuten,
+  // dass etwas aufgefallen ist, KEIN Produkt-Pitch ("Website" nur in der
+  // Signatur). Ziel: unverbindlicher Zoom-Blick. Ohne gepruefte Notiz kein
+  // konkreter Mangel.
   const bodyMitWebsite = `Guten Tag,
 
-als Betrieb${ortTeil} leben Sie von Kundschaft aus der Region – und die schaut heute fast immer zuerst online, bevor sie anruft. Genau da bin ich auf Sie aufmerksam geworden.
+als Betrieb${ortTeil} leben Sie von Kundschaft aus der Region – und die schaut heute fast immer zuerst online, bevor sie sich meldet. Genau da bin ich auf Sie aufmerksam geworden.
 
-Beim Blick auf Ihren Auftritt sind mir ein paar Punkte aufgefallen, mit denen Sie mit wenig Aufwand mehr Anfragen bekommen könnten. Statt das lang zu beschreiben, zeige ich es Ihnen lieber direkt: In einem kurzen Online-Termin (10–15 Minuten per Zoom) gehe ich Ihren Auftritt mit Ihnen durch und zeige konkret, was sich verbessern lässt.
+Dabei sind mir ein, zwei Punkte aufgefallen, mit denen Sie online spürbar mehr aus Ihrem Auftritt holen könnten – Kleinigkeiten, die vielen Betrieben gar nicht auffallen, aber Anfragen kosten. Was genau ich meine, zeige ich Ihnen lieber kurz direkt, statt es hier lang zu beschreiben.
 
-Hätten Sie diese Woche Zeit für einen kurzen Online-Termin? Nennen Sie mir gern zwei oder drei Zeitfenster, die Ihnen entgegenkommen – oder rufen Sie mich direkt an unter ${AKQUISE_TELEFON}.
+Hätten Sie diese Woche 10 Minuten für einen unverbindlichen Blick gemeinsam (per Zoom)? Wenn Sie neugierig sind, nennen Sie mir gern zwei, drei Zeitfenster.
 
 Beste Grüße
 ${absender} · Lumio`;
 
   const bodyOhneWebsite = `Guten Tag,
 
-als Betrieb${ortTeil} gewinnen Sie Ihre Kunden vermutlich vor allem über Empfehlung und Telefon. Mir ist aufgefallen, dass Sie online bisher kaum zu finden sind – und dabei geht einiges verloren, weil immer mehr Leute zuerst googeln.
+als Betrieb${ortTeil} gewinnen Sie Ihre Kunden vermutlich vor allem über Empfehlung. Mir ist aufgefallen, dass Sie online bisher kaum zu finden sind – dabei sucht heute fast jeder zuerst im Netz, bevor er anruft.
 
-Eine schlanke, moderne Website ändert das schnell. Statt das lang zu beschreiben, zeige ich es Ihnen lieber direkt: In einem kurzen Online-Termin (10–15 Minuten per Zoom) zeige ich Ihnen, wie das für Sie aussehen könnte.
+Da steckt aus meiner Sicht einiges an ungenutztem Potenzial für Sie. Wie sich das mit wenig Aufwand ändern ließe, zeige ich Ihnen lieber kurz direkt.
 
-Hätten Sie diese Woche Zeit für einen kurzen Online-Termin? Nennen Sie mir gern zwei oder drei Zeitfenster, die Ihnen entgegenkommen – oder rufen Sie mich direkt an unter ${AKQUISE_TELEFON}.
+Hätten Sie diese Woche 10 Minuten für einen unverbindlichen Austausch (per Zoom)? Wenn's Sie interessiert, nennen Sie mir gern zwei, drei Zeitfenster.
 
 Beste Grüße
 ${absender} · Lumio`;
@@ -152,25 +149,24 @@ ${absender} · Lumio`;
 
   try {
     const antwort = await askKI(
-      `Du bist die Akquise-Assistenz der Webagentur Lumio (Websites & Design, Aidlingen). Verfasse eine kurze, professionelle Erstkontakt-Mail per E-Mail (Kalt-Akquise, es wurde NICHT vorher angerufen) auf Deutsch (per Sie) – seriös und freundlich, kein Verkaufsdruck, keine Ausrufezeichen, keine Emojis.
+      `Du bist die Akquise-Assistenz der Webagentur Lumio (Websites & Design, Aidlingen). Verfasse eine kurze Erstkontakt-Mail per E-Mail (Kalt-Akquise, es wurde NICHT vorher angerufen) auf Deutsch (per Sie). Ziel ist NICHT zu verkaufen, sondern NEUGIER zu wecken, damit der Empfänger antwortet. Seriös, freundlich, kein Verkaufsdruck, keine Ausrufezeichen, keine Emojis, KEIN Produkt-Pitch – nenne NICHT "Website"/"moderne Website" als Angebot (das steht in der Signatur).
 
 FESTES GERÜST – halte dich exakt daran:
 1. Betreff: wähle GENAU EINEN aus dem unten vorgegebenen Betreff-Pool und gib ihn wörtlich zurück – erfinde keinen eigenen.
 2. Anrede: "Sehr geehrter Herr <Nachname>," bzw. "Sehr geehrte Frau <Nachname>," NUR wenn Ansprechpartner UND Anrede (Herr/Frau) zweifelsfrei bekannt sind; sonst "Guten Tag,".
-3. Absatz 1 (Aufhänger): EIN Satz, der Branche und Ort aufgreift (Kunden schauen heute zuerst online), und der mit genau diesem Satz endet: "Genau da bin ich auf Sie aufmerksam geworden." Erwähne KEINEN Anruf (es wurde nicht angerufen). Den Firmennamen NICHT nennen.
-4. Absatz 2 (Andeutung + Angebot): Liegt eine geprüfte interne Notiz vor, deute EINEN konkreten Punkt daraus an (als das, was ein Besucher merkt) – ohne ihn breitzuwalzen. Ist die Notiz leer, schreibe allgemein: "sind mir ein paar Punkte aufgefallen, mit denen Sie mit wenig Aufwand mehr Anfragen bekommen könnten". Biete an, es in einem kurzen Online-Termin (10–15 Min. per Zoom) direkt zu zeigen. Bei Website-Status "keine": stattdessen darauf eingehen, dass der Betrieb online bisher kaum zu finden ist.
-5. Absatz 3 (CTA, Ziel Zoom): Frage nach einem kurzen Online-Termin diese Woche und bitte um zwei, drei Zeitfenster (das Wort "passt" NICHT verwenden). Als Alternative die Telefonnummer ${AKQUISE_TELEFON}.
+3. Absatz 1 (Aufhänger): EIN Satz, der Branche und Ort aufgreift (Kunden schauen heute zuerst online), und der mit genau diesem Satz endet: "Genau da bin ich auf Sie aufmerksam geworden." Erwähne KEINEN Anruf. Den Firmennamen NICHT nennen.
+4. Absatz 2 (Neugier): deute an, dass dir "ein, zwei Punkte" aufgefallen sind, mit denen der Betrieb online spürbar mehr aus seinem Auftritt holen könnte – Kleinigkeiten, die vielen gar nicht auffallen, aber Anfragen kosten. Liegt eine geprüfte interne Notiz vor, darfst du EINEN Punkt daraus dezent andeuten (nie behaupten, was nicht drinsteht). Schließe damit, dass du lieber kurz direkt zeigst, was du meinst, statt es hier lang zu beschreiben. Bei Website-Status "keine": stattdessen andeuten, dass der Betrieb online kaum zu finden ist und da ungenutztes Potenzial steckt. NENNE KEINE Lösung/kein Produkt.
+5. Absatz 3 (CTA, niederschwellig): frage nach 10 Minuten für einen unverbindlichen Blick/Austausch diese Woche (per Zoom) und bitte, bei Interesse zwei, drei Zeitfenster zu nennen. Das Wort "passt" NICHT verwenden.
 6. Gruß: "Beste Grüße", nächste Zeile "${absender} · Lumio".
 
 HARTE REGELN:
 - Niemals einen Mangel behaupten, der nicht in der internen Notiz steht.
-- Nichts vorab breit erklären, kein Preis, KEINE Demo-/Vorschau-Links – der Rest bleibt fürs Gespräch.
-- ~90–120 Wörter, keine Platzhalter in eckigen Klammern.
+- Kein Produkt anpreisen, kein Preis, KEINE Demo-/Vorschau-Links – der Rest bleibt fürs Gespräch.
+- ~80–110 Wörter, keine Platzhalter in eckigen Klammern.
 
 Antworte AUSSCHLIESSLICH mit gültigem JSON, ohne weiteren Text:
 {"subject":"...","body":"...mit \\n für Zeilenumbrüche..."}`,
       `Absender: ${absender}
-Telefonnummer für die Mail: ${AKQUISE_TELEFON}
 Firma: ${input.firma}
 Ort: ${input.ort?.trim() || "unbekannt"}
 Branche: ${branche || "unbekannt"}
