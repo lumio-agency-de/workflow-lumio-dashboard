@@ -28,8 +28,11 @@ export async function entwuerfeFuerBranche(
   fallbackUserId: string,
   absender?: string
 ): Promise<EntwuerfeErgebnis> {
+  // Nur Firmen, fuer die noch KEIN Entwurf existiert (mailEntwurfAm = null).
+  // So kann der Knopf gefahrlos mehrfach geklickt werden (z. B. wenn Vercel
+  // bei vielen Firmen ins Zeitlimit laeuft) und macht dupfrei dort weiter.
   const preps = await prisma.contactPrep.findMany({
-    where: { branche, status: { not: "kontaktiert" } },
+    where: { branche, status: { not: "kontaktiert" }, mailEntwurfAm: null },
     orderBy: { createdAt: "desc" },
   });
 
