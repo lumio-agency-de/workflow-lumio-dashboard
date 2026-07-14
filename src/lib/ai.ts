@@ -99,6 +99,9 @@ const BETREFF_POOL = [
   "Werden Sie gefunden – oder Ihr Wettbewerber?",
 ] as const;
 
+// Absender-Telefonnummer (Miko) als niederschwellige Alternative im CTA.
+const AKQUISE_TELEFON = "0176 6108 1235";
+
 export async function draftErstkontaktMail(
   input: ErstkontaktInput
 ): Promise<ErstkontaktMail> {
@@ -122,7 +125,7 @@ als Betrieb${ortTeil} leben Sie von Kundschaft aus der Region – und die schaut
 
 Dabei sind mir ein, zwei Punkte aufgefallen, mit denen Sie online spürbar mehr aus Ihrem Auftritt holen könnten – Kleinigkeiten, die vielen Betrieben gar nicht auffallen, aber Anfragen kosten. Was genau ich meine, zeige ich Ihnen lieber kurz direkt, statt es hier lang zu beschreiben.
 
-Hätten Sie diese Woche 10 Minuten für einen unverbindlichen Blick gemeinsam (per Zoom)? Wenn Sie neugierig sind, nennen Sie mir gern zwei, drei Zeitfenster.
+Hätten Sie diese Woche 10 Minuten für einen unverbindlichen Blick gemeinsam (per Zoom)? Wenn Sie neugierig sind, nennen Sie mir gern zwei, drei Zeitfenster – oder rufen Sie mich direkt an unter ${AKQUISE_TELEFON}.
 
 Beste Grüße
 ${absender} · Lumio`;
@@ -133,7 +136,7 @@ als Betrieb${ortTeil} gewinnen Sie Ihre Kunden vermutlich vor allem über Empfeh
 
 Da steckt aus meiner Sicht einiges an ungenutztem Potenzial für Sie. Wie sich das mit wenig Aufwand ändern ließe, zeige ich Ihnen lieber kurz direkt.
 
-Hätten Sie diese Woche 10 Minuten für einen unverbindlichen Austausch (per Zoom)? Wenn's Sie interessiert, nennen Sie mir gern zwei, drei Zeitfenster.
+Hätten Sie diese Woche 10 Minuten für einen unverbindlichen Austausch (per Zoom)? Wenn's Sie interessiert, nennen Sie mir gern zwei, drei Zeitfenster – oder rufen Sie mich direkt an unter ${AKQUISE_TELEFON}.
 
 Beste Grüße
 ${absender} · Lumio`;
@@ -156,7 +159,7 @@ FESTES GERÜST – halte dich exakt daran:
 2. Anrede: "Sehr geehrter Herr <Nachname>," bzw. "Sehr geehrte Frau <Nachname>," NUR wenn Ansprechpartner UND Anrede (Herr/Frau) zweifelsfrei bekannt sind; sonst "Guten Tag,".
 3. Absatz 1 (Aufhänger): EIN Satz, der Branche und Ort aufgreift (Kunden schauen heute zuerst online), und der mit genau diesem Satz endet: "Genau da bin ich auf Sie aufmerksam geworden." Erwähne KEINEN Anruf. Den Firmennamen NICHT nennen.
 4. Absatz 2 (Neugier): deute an, dass dir "ein, zwei Punkte" aufgefallen sind, mit denen der Betrieb online spürbar mehr aus seinem Auftritt holen könnte – Kleinigkeiten, die vielen gar nicht auffallen, aber Anfragen kosten. Liegt eine geprüfte interne Notiz vor, darfst du EINEN Punkt daraus dezent andeuten (nie behaupten, was nicht drinsteht). Schließe damit, dass du lieber kurz direkt zeigst, was du meinst, statt es hier lang zu beschreiben. Bei Website-Status "keine": stattdessen andeuten, dass der Betrieb online kaum zu finden ist und da ungenutztes Potenzial steckt. NENNE KEINE Lösung/kein Produkt.
-5. Absatz 3 (CTA, niederschwellig): frage nach 10 Minuten für einen unverbindlichen Blick/Austausch diese Woche (per Zoom) und bitte, bei Interesse zwei, drei Zeitfenster zu nennen. Das Wort "passt" NICHT verwenden.
+5. Absatz 3 (CTA, niederschwellig): frage nach 10 Minuten für einen unverbindlichen Blick/Austausch diese Woche (per Zoom) und bitte, bei Interesse zwei, drei Zeitfenster zu nennen; als Alternative die Telefonnummer nennen ("oder rufen Sie mich direkt an unter ${AKQUISE_TELEFON}"). Das Wort "passt" NICHT verwenden.
 6. Gruß: "Beste Grüße", nächste Zeile "${absender} · Lumio".
 
 HARTE REGELN:
@@ -167,6 +170,7 @@ HARTE REGELN:
 Antworte AUSSCHLIESSLICH mit gültigem JSON, ohne weiteren Text:
 {"subject":"...","body":"...mit \\n für Zeilenumbrüche..."}`,
       `Absender: ${absender}
+Telefonnummer für den CTA: ${AKQUISE_TELEFON}
 Firma: ${input.firma}
 Ort: ${input.ort?.trim() || "unbekannt"}
 Branche: ${branche || "unbekannt"}
