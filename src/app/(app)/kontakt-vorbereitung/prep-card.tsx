@@ -15,7 +15,7 @@ import {
   Check,
   X,
 } from "lucide-react";
-import { updatePrep, deletePrep } from "./actions";
+import { updatePrep, deletePrep, deleteLeadKomplett } from "./actions";
 
 export type PrepData = {
   id: string;
@@ -123,7 +123,18 @@ export default function PrepCard({
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="font-display text-lg font-semibold">{prep.firma}</h3>
+            <a
+              href={
+                "https://www.google.com/search?q=" +
+                encodeURIComponent([prep.firma, prep.ort].filter(Boolean).join(" "))
+              }
+              target="_blank"
+              rel="noreferrer"
+              title="Bei Google suchen"
+              className="font-display text-lg font-semibold underline-offset-2 transition-colors hover:text-accent hover:underline"
+            >
+              {prep.firma}
+            </a>
             {prep.ausLeads && (
               <span className="rounded-full border border-line bg-white/5 px-2 py-0.5 text-[11px] text-muted">
                 aus Leads
@@ -387,16 +398,37 @@ export default function PrepCard({
         )}
       </form>
 
-      {/* Loeschen (eigenes Formular, damit es nicht das Speichern ausloest) */}
-      <form action={deletePrep} className="mt-2">
-        <input type="hidden" name="id" value={prep.id} />
-        <button
-          type="submit"
-          className="flex items-center gap-1.5 text-xs font-medium text-rose-400 transition-colors hover:text-rose-300"
+      {/* Aktionen (eigene Formulare, damit sie nicht das Speichern ausloesen):
+          "Entfernen" nimmt die Firma nur aus dieser Liste (sie bleibt als Lead
+          erhalten); "Lead löschen" entfernt sie endgueltig aus dem Dashboard. */}
+      <div className="mt-2 flex flex-wrap items-center gap-4">
+        <form action={deletePrep}>
+          <input type="hidden" name="id" value={prep.id} />
+          <button
+            type="submit"
+            className="flex items-center gap-1.5 text-xs font-medium text-muted transition-colors hover:text-ink"
+            title="Aus dieser Liste entfernen (bleibt als Lead erhalten)"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Entfernen
+          </button>
+        </form>
+        <form
+          action={deleteLeadKomplett}
+          onSubmit={(e) => {
+            if (!window.confirm(`„${prep.firma}" endgültig aus dem Dashboard löschen?`))
+              e.preventDefault();
+          }}
         >
-          <Trash2 className="h-3.5 w-3.5" /> Entfernen
-        </button>
-      </form>
+          <input type="hidden" name="id" value={prep.id} />
+          <button
+            type="submit"
+            className="flex items-center gap-1.5 text-xs font-medium text-rose-400 transition-colors hover:text-rose-300"
+            title="Endgültig aus dem Dashboard löschen"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Lead löschen
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
