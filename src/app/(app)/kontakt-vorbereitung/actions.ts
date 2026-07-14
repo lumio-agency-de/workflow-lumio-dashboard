@@ -126,4 +126,31 @@ export async function deletePrep(formData: FormData) {
 
   await prisma.contactPrep.delete({ where: { id } });
   revalidatePath("/kontakt-vorbereitung");
+  revalidatePath("/kontaktiert");
+  revalidatePath("/leads");
+}
+
+// Lead ENDGUELTIG loeschen: Vorbereitung UND den zugehoerigen Prospect entfernen
+// -> die Firma verschwindet ueberall aus dem Dashboard (nicht nur aus dieser
+// Liste, wo sie sonst als Prospect zurueckkaeme). Fuer "Kontakt erledigt, raus".
+export async function deleteLeadKomplett(formData: FormData) {
+  const session = await requireSession();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const prep = await prisma.contactPrep.findUnique({
+    where: { id },
+    select: { prospectId: true, wiedervorlageEventId: true },
+  });
+  // Kalender-Termin (falls vorhanden) best-effort mitloeschen.
+  if (prep?.wiedervorlageEventId && session.user?.id) {
+    await entferneWiedervorlage(prep.wiedervorlageEventId, session.user.id);
+  }
+  await prisma.contactPrep.delete({ where: { id } });
+  if (prep?.prospectId) {
+    await prisma.prospect.delete({ where: { id: prep.prospectId } }).catch(() => {});
+  }
+  revalidatePath("/kontakt-vorbereitung");
+  revalidatePath("/kontaktiert");
+  revalidatePath("/leads");
 }

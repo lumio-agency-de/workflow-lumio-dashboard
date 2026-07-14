@@ -14,9 +14,10 @@ import {
   Copy,
   Check,
   CalendarClock,
+  Trash2,
 } from "lucide-react";
 import { scoreClass } from "@/lib/akquise";
-import { updateProspect } from "./actions";
+import { updateProspect, deleteProspect } from "./actions";
 import { addFromProspect } from "@/app/(app)/kontakt-vorbereitung/actions";
 
 type P = {
@@ -113,6 +114,17 @@ export default function ProspectRow({ p }: { p: P }) {
     fd.set("prospectId", p.id);
     startPrepTransition(async () => {
       await addFromProspect(fd);
+    });
+  }
+
+  // Lead endgueltig aus dem Dashboard loeschen (mit Rueckfrage).
+  const [delPending, startDelTransition] = useTransition();
+  function leadLoeschen() {
+    if (!window.confirm(`„${p.name}" endgültig aus dem Dashboard löschen?`)) return;
+    const fd = new FormData();
+    fd.set("id", p.id);
+    startDelTransition(async () => {
+      await deleteProspect(fd);
     });
   }
 
@@ -296,6 +308,19 @@ export default function ProspectRow({ p }: { p: P }) {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Lead endgueltig aus dem Dashboard loeschen */}
+          <div className="flex justify-end border-t border-line pt-3">
+            <button
+              type="button"
+              onClick={leadLoeschen}
+              disabled={delPending}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-rose-400 transition-colors hover:text-rose-300 disabled:opacity-50"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {delPending ? "Löscht …" : "Lead löschen"}
+            </button>
           </div>
         </div>
       )}

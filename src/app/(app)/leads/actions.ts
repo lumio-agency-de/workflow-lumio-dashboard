@@ -93,3 +93,19 @@ export async function updateProspect(formData: FormData) {
   await prisma.prospect.update({ where: { id }, data });
   revalidatePath("/leads");
 }
+
+// Lead endgueltig loeschen: entfernt den Prospect (und eine evtl. verknuepfte
+// Kontakt-Vorbereitung) komplett aus dem Dashboard. Nicht rueckgaengig zu machen
+// — der leadgen-Sync koennte die Firma bei einem neuen Lauf aber wieder anlegen.
+export async function deleteProspect(formData: FormData) {
+  await requireUser();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  // Erst eine evtl. vorhandene Vorbereitung entfernen (sonst bliebe sie verwaist),
+  // dann den Prospect selbst.
+  await prisma.contactPrep.deleteMany({ where: { prospectId: id } });
+  await prisma.prospect.delete({ where: { id } }).catch(() => {});
+  revalidatePath("/leads");
+  revalidatePath("/kontakt-vorbereitung");
+  revalidatePath("/kontaktiert");
+}
