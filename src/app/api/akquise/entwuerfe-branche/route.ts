@@ -1,6 +1,9 @@
 // Legt fuer alle Firmen einer Branche in der Kontakt-Vorbereitung je einen
 // Erstkontakt-Entwurf im info@-Gmail an (kein Versand). Nur auf Knopfdruck.
 export const runtime = "nodejs";
+// KI-Entwuerfe je Firma dauern; so viel Laufzeit wie der Plan erlaubt geben.
+// Reicht es fuer viele Firmen nicht, macht ein erneuter Klick dupfrei weiter.
+export const maxDuration = 300;
 
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
