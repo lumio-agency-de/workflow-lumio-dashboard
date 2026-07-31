@@ -150,13 +150,16 @@ export default function AbschlussAktionen({ daten }: { daten: AbschlussDaten }) 
               <button
                 type="button"
                 onClick={entwurfAnlegen}
-                disabled={busy}
+                // Ohne E-Mail-Adresse laesst sich kein Entwurf adressieren ->
+                // Knopf ausgegraut. Damit das nicht wie ein toter Knopf wirkt,
+                // steht der Grund direkt daneben (Tooltips greifen am iPad nicht).
+                disabled={busy || !daten.email}
                 title={
                   daten.email
                     ? "Legt im info@-Postfach einen Mail-Entwurf mit der Preisliste als PDF-Anhang an"
                     : "Für diese Firma ist keine E-Mail-Adresse hinterlegt — bitte oben ergänzen und speichern"
                 }
-                className="flex items-center gap-2 rounded-xl border border-line bg-white/5 px-4 py-2 text-sm font-semibold text-ink transition hover:border-accent hover:text-accent disabled:opacity-60"
+                className="flex items-center gap-2 rounded-xl border border-line bg-white/5 px-4 py-2 text-sm font-semibold text-ink transition hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:border-line disabled:text-muted disabled:opacity-50 disabled:hover:border-line disabled:hover:text-muted"
               >
                 <MailPlus className="h-4 w-4" />
                 {busy
@@ -165,6 +168,12 @@ export default function AbschlussAktionen({ daten }: { daten: AbschlussDaten }) 
                     ? "Preislisten-Entwurf erneut"
                     : "Preisliste als Mail-Entwurf"}
               </button>
+
+              {!daten.email && (
+                <span className="text-xs text-amber-300/90">
+                  E-Mail-Adresse fehlt — oben eintragen und speichern.
+                </span>
+              )}
 
               <Link
                 href={`/angebote/neu?prepId=${encodeURIComponent(daten.id)}`}
