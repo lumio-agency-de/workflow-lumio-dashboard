@@ -4,9 +4,11 @@
 //
 // Laeuft im Node-Runtime, weil die PDF-Bibliothek Node-Funktionen braucht.
 export const runtime = "nodejs";
-// PDF-Erzeugung + Gmail-Aufruf brauchen etwas Luft (Kaltstart).
+// Gmail-Aufruf mit ~650 KB Anhang braucht etwas Luft (Kaltstart).
 export const maxDuration = 60;
 
+import fs from "node:fs";
+import path from "node:path";
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
@@ -14,8 +16,17 @@ import { prisma } from "@/lib/prisma";
 import { googleConfigured } from "@/lib/env";
 import { getInfoClient } from "@/lib/google/client";
 import { createDraft } from "@/lib/google/gmail";
-import { renderPreislistePdf } from "@/lib/pdf/preisliste-document";
 import { PREISLISTE_BETREFF, preislisteMailHtml } from "@/lib/preisliste";
+
+// Mikos kundenfertige Preisliste (2 Seiten A4). Quelle liegt im Firmen-
+// Gedaechtnis unter lumio-gedaechtnis/preisliste/ – die Kopie hier muss bei
+// jeder Aenderung mitgezogen werden (siehe assets/preisliste/README.md).
+// Der Pfad ist in next.config.ts unter outputFileTracingIncludes eingetragen,
+// damit die Datei im Vercel-Deployment vorhanden ist.
+const PREISLISTE_PDF = path.join(
+  process.cwd(),
+  "assets/preisliste/Lumio-Preisliste.pdf"
+);
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -57,8 +68,17 @@ export async function POST(request: Request) {
     );
   }
 
-  // PDF erzeugen und als Anhang an den Entwurf haengen
-  const pdf = await renderPreislistePdf(prep.firma);
+  // Preisliste einlesen. Fehlt die Datei, lieber gar keinen Entwurf anlegen als
+  // eine Mail ohne den Anhang, um den es geht.
+  let pdf: Buffer;
+  try {
+    pdf = fs.readFileSync(PREISLISTE_PDF);
+  } catch {
+    return NextResponse.json(
+      { fehler: "Preislisten-PDF ist im Deployment nicht auffindbar." },
+      { status: 500 }
+    );
+  }
 
   // Dateinamen bauen: Lumio_Preisliste_Kundenname.pdf
   const asciiName = prep.firma
