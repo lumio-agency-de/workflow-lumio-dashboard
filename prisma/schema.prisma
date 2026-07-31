@@ -316,6 +316,23 @@ model ContactPrep {
   status String @default("offen") // offen | vorbereitet | kontaktiert
   notiz  String @default("") // freie Notizen fuers Gespraech
 
+  // Ergebnis des Erstkontakts – greift erst, wenn status = "kontaktiert" ist.
+  // Unterteilt den Bereich "Kontaktiert" in seine Unterkategorien:
+  //   offen             = angeschrieben, noch keine Rueckmeldung (Startwert)
+  //   erfolgreich       = Interesse, es geht weiter (Preisliste -> Angebot)
+  //   nicht_erfolgreich = Absage / kein Interesse
+  ergebnis String @default("offen")
+
+  // Zeitpunkt, an dem die (oeffentliche) Preisliste per info@ rausging.
+  // Soll laut Ablauf VOR der Angebotserstellung passieren.
+  preislisteGesendetAm DateTime?
+
+  // Aus dieser Vorbereitung entstandenes Angebot (Bereich Vertrieb). Bewusst
+  // OHNE Prisma-Relation – wie bei Invoice werden nur die Eckdaten kopiert,
+  // damit das Angebot unabhaengig bestehen bleibt, wenn die Akquise-Zeile geht.
+  angebotId     String? // Offer.id
+  angebotNummer String  @default("") // z. B. ANG-2026-003 (fuer die Anzeige)
+
   // E-Mail-Akquise: Zeitpunkt, an dem der Gmail-Entwurf (info@) erstellt wurde,
   // und — sobald ueber den Sent-Abgleich erkannt — der Versandzeitpunkt.
   mailEntwurfAm  DateTime? // Sammel-Entwurf im info@-Postfach erstellt
@@ -332,4 +349,5 @@ model ContactPrep {
 
   @@index([status])
   @@index([branche])
+  @@index([ergebnis])
 }

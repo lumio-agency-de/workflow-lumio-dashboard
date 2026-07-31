@@ -48,9 +48,13 @@ const STATUS = [
 export default function PrepCard({
   prep,
   katalog,
+  footer,
 }: {
   prep: PrepData;
   katalog: string[];
+  // Optionaler Zusatzbereich am Fuss der Karte. Der Bereich "Kontaktiert"
+  // haengt hier seine Abschluss-Leiste ein (Ergebnis, Preisliste, Angebot).
+  footer?: React.ReactNode;
 }) {
   // Ausgewaehlte Leistungen als State (fuer die Chip-Auswahl)
   const initial = prep.empfohleneLeistungen
@@ -429,6 +433,8 @@ export default function PrepCard({
           </button>
         </form>
       </div>
+
+      {footer}
     </div>
   );
 }
