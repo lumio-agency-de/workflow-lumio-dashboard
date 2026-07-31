@@ -35,6 +35,9 @@ export type NewOfferInput = {
   customerPhone?: string;
   notes?: string;
   items: OfferItemInput[];
+  // Herkunft aus der Akquise (ContactPrep.id), falls das Angebot ueber
+  // "Angebot erstellen" im Bereich "Kontaktiert" gestartet wurde
+  prepId?: string;
 };
 
 // Neues Angebot speichern und danach zur Detailseite weiterleiten
@@ -84,6 +87,19 @@ export async function createOffer(input: NewOfferInput) {
       },
     },
   });
+
+  // Kam das Angebot aus der Akquise, die Firma dort als uebergeben markieren:
+  // die Karte im Bereich "Kontaktiert" zeigt danach den Link aufs Angebot
+  // statt des Buttons. Fehlschlag darf das fertige Angebot nicht kippen.
+  if (input.prepId) {
+    await prisma.contactPrep
+      .update({
+        where: { id: input.prepId },
+        data: { angebotId: offer.id, angebotNummer: offer.number },
+      })
+      .catch(() => {});
+    revalidatePath("/kontaktiert");
+  }
 
   revalidatePath("/angebote");
   // weiter zur Detailseite; ?created=1 loest dort den automatischen PDF-Download aus
