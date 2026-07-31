@@ -189,22 +189,45 @@ export async function sendMailWithAttachment(
 // Einen Gmail-Entwurf (HTML) im verbundenen Postfach anlegen. Wird fuer die
 // Sammel-Erstkontakt-Entwuerfe der Akquise genutzt (info@-Postfach). Legt NUR
 // einen Entwurf an – der Versand passiert bewusst von Hand.
+// Optional kann ein PDF angehaengt werden (Preisliste) – dann wird die
+// Nachricht als multipart/mixed gebaut, sonst bleibt sie eine reine HTML-Mail.
 export async function createDraft(
   client: OAuthClient,
-  input: { to: string; subject: string; html: string }
+  input: {
+    to: string;
+    subject: string;
+    html: string;
+    attachment?: { filename: string; data: Buffer };
+  }
 ): Promise<string> {
   const gmail = google.gmail({ version: "v1", auth: client });
 
   // Betreff mit Umlauten korrekt kodieren (RFC 2047)
   const subjectEnc = `=?UTF-8?B?${Buffer.from(input.subject, "utf8").toString("base64")}?=`;
 
-  const mime =
-    `To: ${input.to}\r\n` +
-    `Subject: ${subjectEnc}\r\n` +
-    `MIME-Version: 1.0\r\n` +
-    `Content-Type: text/html; charset="UTF-8"\r\n` +
-    `Content-Transfer-Encoding: base64\r\n\r\n` +
-    Buffer.from(input.html, "utf8").toString("base64");
+  let mime =
+    `To: ${input.to}\r\n` + `Subject: ${subjectEnc}\r\n` + `MIME-Version: 1.0\r\n`;
+
+  if (input.attachment) {
+    const boundary = "lumio_" + Date.now().toString(36);
+    mime +=
+      `Content-Type: multipart/mixed; boundary="${boundary}"\r\n\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Type: text/html; charset="UTF-8"\r\n` +
+      `Content-Transfer-Encoding: base64\r\n\r\n` +
+      Buffer.from(input.html, "utf8").toString("base64") +
+      `\r\n--${boundary}\r\n` +
+      `Content-Type: application/pdf; name="${input.attachment.filename}"\r\n` +
+      `Content-Disposition: attachment; filename="${input.attachment.filename}"\r\n` +
+      `Content-Transfer-Encoding: base64\r\n\r\n` +
+      input.attachment.data.toString("base64") +
+      `\r\n--${boundary}--`;
+  } else {
+    mime +=
+      `Content-Type: text/html; charset="UTF-8"\r\n` +
+      `Content-Transfer-Encoding: base64\r\n\r\n` +
+      Buffer.from(input.html, "utf8").toString("base64");
+  }
 
   const res = await gmail.users.drafts.create({
     userId: "me",

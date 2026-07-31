@@ -1,6 +1,20 @@
 // PDF-Vorlage fuer die Kunden-Preisliste (mit @react-pdf/renderer).
 // Aufbau bewusst wie offer-document.tsx, damit Angebot und Preisliste beim
 // Kunden nach derselben Firma aussehen. Diese Datei laeuft NUR auf dem Server.
+//
+// ============================ PLATZHALTER-FASSUNG ============================
+// Die endgueltige Preisliste gestaltet MIKO (Stand 31.07.2026). Bis seine
+// Fassung da ist, traegt jede Seite oben ein deutliches PLATZHALTER-Band, damit
+// niemand den Entwurf versehentlich an einen Kunden schickt.
+//
+// Wenn Mikos Fassung fertig ist:
+//   * Liegt sie als fertiges PDF vor -> Datei ablegen und in der Route
+//     src/app/api/akquise/preisliste/entwurf/route.ts statt renderPreislistePdf
+//     einfach einlesen.
+//   * Soll sie hier nachgebaut werden -> Layout unten ersetzen und das
+//     PLATZHALTER-Band (Konstante PLATZHALTER) entfernen.
+// Die Preisdaten selbst stehen in src/lib/preisliste.ts.
+// =============================================================================
 import {
   Document,
   Page,
@@ -20,6 +34,10 @@ import {
   LUMIO_LOGO_PATH,
 } from "@/lib/lumio";
 import { PAKETE, IMMER_ENTHALTEN, HINWEIS_BETRIEB } from "@/lib/preisliste";
+
+// Auf false setzen, sobald Mikos endgueltige Preisliste steht – dann
+// verschwindet das Warnband oben auf der Seite.
+const PLATZHALTER = true;
 
 const styles = StyleSheet.create({
   // Die Preisliste soll auf EINE Seite passen – Abstaende sind deshalb
@@ -47,8 +65,20 @@ const styles = StyleSheet.create({
   accentLine: {
     height: 2,
     backgroundColor: LUMIO_ACCENT,
-    marginTop: 12,
-    marginBottom: 18,
+    marginTop: 10,
+    marginBottom: 12,
+  },
+  // Deutliches Band, solange Mikos endgueltige Fassung fehlt
+  platzhalterBand: {
+    backgroundColor: "#fef3c7",
+    borderWidth: 1,
+    borderColor: "#f59e0b",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+    fontSize: 8.5,
+    color: "#92400e",
+    textAlign: "center",
   },
   metaRow: { flexDirection: "row", justifyContent: "space-between" },
   recipientLabel: {
@@ -63,7 +93,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: "bold",
-    marginTop: 20,
+    marginTop: 14,
     marginBottom: 4,
     lineHeight: 1.2,
   },
@@ -71,7 +101,7 @@ const styles = StyleSheet.create({
 
   // Ein Paket als Karte
   paket: {
-    marginTop: 9,
+    marginTop: 8,
     borderWidth: 1,
     borderColor: "#e2e8f0",
     borderLeftWidth: 3,
@@ -90,7 +120,7 @@ const styles = StyleSheet.create({
   paketPreis: { fontSize: 15, fontWeight: "bold", color: "#0f172a" },
   punkt: { fontSize: 9.5, color: "#334155", marginBottom: 1 },
 
-  block: { marginTop: 14 },
+  block: { marginTop: 12 },
   blockTitle: {
     fontSize: 9,
     fontWeight: "bold",
@@ -99,7 +129,7 @@ const styles = StyleSheet.create({
   },
   blockText: { fontSize: 9, color: "#334155" },
   hinweis: {
-    marginTop: 12,
+    marginTop: 10,
     backgroundColor: "#f1f5f9",
     borderLeftWidth: 3,
     borderLeftColor: LUMIO_ACCENT,
@@ -157,6 +187,14 @@ function PreislisteDocument({
         </View>
 
         <View style={styles.accentLine} />
+
+        {/* Platzhalter-Hinweis – entfaellt mit Mikos endgueltiger Fassung */}
+        {PLATZHALTER ? (
+          <Text style={styles.platzhalterBand}>
+            PLATZHALTER — vorläufige Fassung, nicht an Kunden versenden. Die
+            endgültige Preisliste wird gerade erstellt.
+          </Text>
+        ) : null}
 
         {/* Empfaenger (falls bekannt) + Datum */}
         <View style={styles.metaRow}>
