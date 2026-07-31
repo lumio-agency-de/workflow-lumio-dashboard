@@ -130,8 +130,8 @@ async function KontaktiertPageInner({ searchParams }: PageProps) {
         firma: p.firma,
         email: p.email,
         ergebnis: p.ergebnis,
-        preislisteGesendetAm: p.preislisteGesendetAm
-          ? formatDate(p.preislisteGesendetAm)
+        preislisteErstelltAm: p.preislisteErstelltAm
+          ? formatDate(p.preislisteErstelltAm)
           : null,
         angebotId: p.angebotId,
         angebotNummer: p.angebotNummer,
