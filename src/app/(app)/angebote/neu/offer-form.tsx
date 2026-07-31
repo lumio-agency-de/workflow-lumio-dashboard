@@ -30,16 +30,35 @@ const labelClass = "flex flex-col gap-1 text-sm font-medium";
 
 let nextKey = 1; // fortlaufender Zeilen-Schluessel
 
+// Vorbefuellung, wenn das Angebot aus der Akquise heraus gestartet wird
+type CustomerDefaults = {
+  customerCompany: string;
+  customerContact: string;
+  customerCity: string;
+  customerEmail: string;
+  customerPhone: string;
+};
+type ItemDefault = { packageId: string; label: string; unitPrice: string };
+
 export default function OfferForm({
   packages,
   defaultNumber,
   defaultDate,
   defaultValidUntil,
+  defaultCustomer,
+  defaultItems,
+  prepId,
 }: {
   packages: PackageOption[];
   defaultNumber: string;
   defaultDate: string;
   defaultValidUntil: string;
+  // Aus dem Bereich Akquise vorbefuellte Kundendaten/Positionen (optional)
+  defaultCustomer?: CustomerDefaults;
+  defaultItems?: ItemDefault[];
+  // Herkunfts-Vorbereitung, damit die Firma nach dem Speichern in der Akquise
+  // als "ins Angebot uebergeben" markiert werden kann
+  prepId?: string;
 }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
@@ -51,22 +70,30 @@ export default function OfferForm({
 
   // Kundendaten
   const [customer, setCustomer] = useState({
-    customerCompany: "",
-    customerContact: "",
+    customerCompany: defaultCustomer?.customerCompany ?? "",
+    customerContact: defaultCustomer?.customerContact ?? "",
     customerStreet: "",
     customerZip: "",
-    customerCity: "",
-    customerEmail: "",
-    customerPhone: "",
+    customerCity: defaultCustomer?.customerCity ?? "",
+    customerEmail: defaultCustomer?.customerEmail ?? "",
+    customerPhone: defaultCustomer?.customerPhone ?? "",
   });
 
   // Notizfeld
   const [notes, setNotes] = useState("");
 
-  // Positionen – mit einer leeren Zeile starten
-  const [rows, setRows] = useState<Row[]>([
-    { key: nextKey++, packageId: "", label: "", quantity: "1", unitPrice: "" },
-  ]);
+  // Positionen – aus der Akquise vorbefuellt, sonst eine leere Zeile
+  const [rows, setRows] = useState<Row[]>(
+    defaultItems && defaultItems.length > 0
+      ? defaultItems.map((i) => ({
+          key: nextKey++,
+          packageId: i.packageId,
+          label: i.label,
+          quantity: "1",
+          unitPrice: i.unitPrice,
+        }))
+      : [{ key: nextKey++, packageId: "", label: "", quantity: "1", unitPrice: "" }]
+  );
 
   // Gesamtsumme live berechnen
   const total = useMemo(
@@ -148,6 +175,7 @@ export default function OfferForm({
           ...customer,
           notes,
           items,
+          prepId,
         });
       } catch (err) {
         setError(
