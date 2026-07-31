@@ -323,9 +323,11 @@ model ContactPrep {
   //   nicht_erfolgreich = Absage / kein Interesse
   ergebnis String @default("offen")
 
-  // Zeitpunkt, an dem die (oeffentliche) Preisliste per info@ rausging.
-  // Soll laut Ablauf VOR der Angebotserstellung passieren.
-  preislisteGesendetAm DateTime?
+  // Zeitpunkt, an dem die (oeffentliche) Preisliste als PDF erzeugt wurde.
+  // Soll laut Ablauf VOR der Angebotserstellung passieren. Verschickt wird das
+  // PDF von Hand als Mail-Anhang – das Dashboard sieht davon nichts mehr.
+  // Der DB-Spaltenname stammt noch aus der Versand-Fassung, daher @map.
+  preislisteErstelltAm DateTime? @map("preislisteGesendetAm")
 
   // Aus dieser Vorbereitung entstandenes Angebot (Bereich Vertrieb). Bewusst
   // OHNE Prisma-Relation – wie bei Invoice werden nur die Eckdaten kopiert,

@@ -2,7 +2,8 @@
 
 // Abschluss-Leiste unter jeder Karte im Bereich "Kontaktiert":
 //   1. Ergebnis des Erstkontakts setzen (offen / erfolgreich / nicht erfolgreich)
-//   2. bei "erfolgreich": Preisliste per info@ rausschicken (mit Vorschau)
+//   2. bei "erfolgreich": Preisliste als PDF herunterladen (haengt man selbst
+//      als Anhang an eine Mail – das Dashboard verschickt sie nicht)
 //   3. danach: Angebot erstellen -> uebergibt die Firma an den Vertrieb
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -11,10 +12,9 @@ import {
   ThumbsUp,
   ThumbsDown,
   CircleDashed,
-  Send,
+  FileDown,
   FileText,
   Check,
-  X,
   ExternalLink,
 } from "lucide-react";
 import { setErgebnis } from "./actions";
@@ -24,7 +24,7 @@ export type AbschlussDaten = {
   firma: string;
   email: string;
   ergebnis: string;
-  preislisteGesendetAm: string | null; // schon formatiert, oder null
+  preislisteErstelltAm: string | null; // schon formatiert, oder null
   angebotId: string | null;
   angebotNummer: string;
 };
@@ -54,72 +54,23 @@ export default function AbschlussAktionen({ daten }: { daten: AbschlussDaten }) 
   const router = useRouter();
   const [, startTransition] = useTransition();
 
-  // Preislisten-Vorschau + Versand
-  const [vorschau, setVorschau] = useState<{ subject: string; body: string } | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [meldung, setMeldung] = useState<string | null>(null);
-  const [fehler, setFehler] = useState(false);
-  const [gesendet, setGesendet] = useState(!!daten.preislisteGesendetAm);
+  // Ob die Preisliste schon erzeugt wurde (Server merkt sich das beim Download)
+  const [erstellt, setErstellt] = useState(!!daten.preislisteErstelltAm);
 
-  async function preislisteVorschau() {
-    setBusy(true);
-    setFehler(false);
-    setMeldung(null);
-    try {
-      const res = await fetch("/api/akquise/preisliste", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prepId: daten.id }),
-      });
-      if (!res.ok) throw new Error();
-      const d = (await res.json()) as { subject: string; body: string };
-      setVorschau({ subject: d.subject, body: d.body });
-    } catch {
-      setFehler(true);
-      setMeldung("Vorschau konnte nicht geladen werden.");
-    } finally {
-      setBusy(false);
-    }
+  // Nach dem Download den Serverstand nachziehen, damit der Hinweis unten
+  // und der Angebots-Check stimmen.
+  function nachDownload() {
+    setErstellt(true);
+    // kurz warten, bis der Download-Request serverseitig durch ist
+    setTimeout(() => startTransition(() => router.refresh()), 1200);
   }
 
-  async function preislisteSenden() {
-    setBusy(true);
-    setFehler(false);
-    setMeldung(null);
-    try {
-      const res = await fetch("/api/akquise/preisliste", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prepId: daten.id, senden: true }),
-      });
-      const d = (await res.json().catch(() => ({}))) as {
-        gesendet?: boolean;
-        empfaenger?: string;
-        fehler?: string;
-      };
-      if (!res.ok || !d.gesendet) {
-        setFehler(true);
-        setMeldung(d.fehler ?? "Versand fehlgeschlagen.");
-        return;
-      }
-      setGesendet(true);
-      setVorschau(null);
-      setMeldung(`Preisliste an ${d.empfaenger} verschickt.`);
-      startTransition(() => router.refresh());
-    } catch {
-      setFehler(true);
-      setMeldung("Versand fehlgeschlagen.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // Ohne verschickte Preisliste nachfragen – laut Ablauf soll sie vor dem
-  // Angebot rausgehen, blockiert wird es aber nicht.
+  // Ohne erzeugte Preisliste nachfragen – laut Ablauf soll sie vor dem Angebot
+  // beim Kunden sein, blockiert wird es aber nicht.
   function angebotPruefen(e: React.MouseEvent) {
-    if (gesendet) return;
+    if (erstellt) return;
     const weiter = window.confirm(
-      `Die Preisliste wurde an „${daten.firma}" noch nicht verschickt.\n\nSie sollte vor dem Angebot rausgehen. Trotzdem direkt ein Angebot erstellen?`
+      `Für „${daten.firma}" wurde noch keine Preisliste erzeugt.\n\nSie sollte vor dem Angebot beim Kunden sein. Trotzdem direkt ein Angebot erstellen?`
     );
     if (!weiter) e.preventDefault();
   }
@@ -167,20 +118,15 @@ export default function AbschlussAktionen({ daten }: { daten: AbschlussDaten }) 
             </Link>
           ) : (
             <>
-              <button
-                type="button"
-                onClick={preislisteVorschau}
-                disabled={busy || !daten.email}
-                title={
-                  daten.email
-                    ? "Preisliste ansehen und verschicken"
-                    : "Für diese Firma ist keine E-Mail-Adresse hinterlegt"
-                }
-                className="flex items-center gap-2 rounded-xl border border-line bg-white/5 px-4 py-2 text-sm font-semibold text-ink transition hover:border-accent hover:text-accent disabled:opacity-50"
+              <a
+                href={`/api/akquise/preisliste/pdf?prepId=${encodeURIComponent(daten.id)}`}
+                onClick={nachDownload}
+                title="Preisliste als PDF herunterladen und selbst an eine Mail anhängen"
+                className="flex items-center gap-2 rounded-xl border border-line bg-white/5 px-4 py-2 text-sm font-semibold text-ink transition hover:border-accent hover:text-accent"
               >
-                <Send className="h-4 w-4" />
-                {gesendet ? "Preisliste erneut senden" : "Preisliste senden"}
-              </button>
+                <FileDown className="h-4 w-4" />
+                {erstellt ? "Preisliste (PDF) erneut" : "Preisliste als PDF"}
+              </a>
 
               <Link
                 href={`/angebote/neu?prepId=${encodeURIComponent(daten.id)}`}
@@ -192,55 +138,12 @@ export default function AbschlussAktionen({ daten }: { daten: AbschlussDaten }) 
             </>
           )}
 
-          {gesendet && daten.preislisteGesendetAm && (
+          {daten.preislisteErstelltAm && (
             <span className="flex items-center gap-1.5 text-xs text-emerald-300">
               <Check className="h-3.5 w-3.5" />
-              Preisliste verschickt am {daten.preislisteGesendetAm}
+              Preisliste erstellt am {daten.preislisteErstelltAm}
             </span>
           )}
-        </div>
-      )}
-
-      {meldung && (
-        <p className={"text-xs " + (fehler ? "text-rose-400" : "text-emerald-300")}>
-          {meldung}
-        </p>
-      )}
-
-      {/* Vorschau der Preisliste – erst hier geht sie wirklich raus */}
-      {vorschau && (
-        <div className="flex flex-col gap-2 rounded-xl border border-accent/25 bg-accent/5 p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-wide text-accent">
-              Preisliste — Vorschau
-            </span>
-            <button
-              type="button"
-              onClick={() => setVorschau(null)}
-              aria-label="Schließen"
-              className="inline-flex items-center rounded-lg border border-line bg-white/5 px-2 py-1 text-xs text-muted transition-colors hover:text-ink"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </div>
-          <p className="text-xs text-muted">
-            An: <span className="text-ink">{daten.email}</span> · Betreff:{" "}
-            <span className="text-ink">{vorschau.subject}</span>
-          </p>
-          <p className="max-h-72 overflow-y-auto whitespace-pre-wrap text-sm text-ink">
-            {vorschau.body}
-          </p>
-          <div>
-            <button
-              type="button"
-              onClick={preislisteSenden}
-              disabled={busy}
-              className="glow-accent flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-[#06121e] transition hover:bg-accent-2 disabled:opacity-60"
-            >
-              <Send className="h-4 w-4" />
-              {busy ? "Wird gesendet …" : "Jetzt über info@ senden"}
-            </button>
-          </div>
         </div>
       )}
     </div>

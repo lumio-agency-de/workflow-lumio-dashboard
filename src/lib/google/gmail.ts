@@ -213,33 +213,6 @@ export async function createDraft(
   return res.data.id ?? "";
 }
 
-// Eine HTML-Mail direkt VERSENDEN (kein Entwurf). Gegenstueck zu createDraft;
-// wird fuer die Preisliste genutzt, die auf ausdrueckliche Nachfrage einer
-// bereits interessierten Firma rausgeht. Kaltakquise laeuft weiterhin ueber
-// createDraft + Versand von Hand (UWG § 7).
-export async function sendHtmlMail(
-  client: OAuthClient,
-  input: { to: string; subject: string; html: string }
-): Promise<void> {
-  const gmail = google.gmail({ version: "v1", auth: client });
-
-  // Betreff mit Umlauten korrekt kodieren (RFC 2047)
-  const subjectEnc = `=?UTF-8?B?${Buffer.from(input.subject, "utf8").toString("base64")}?=`;
-
-  const mime =
-    `To: ${input.to}\r\n` +
-    `Subject: ${subjectEnc}\r\n` +
-    `MIME-Version: 1.0\r\n` +
-    `Content-Type: text/html; charset="UTF-8"\r\n` +
-    `Content-Transfer-Encoding: base64\r\n\r\n` +
-    Buffer.from(input.html, "utf8").toString("base64");
-
-  await gmail.users.messages.send({
-    userId: "me",
-    requestBody: { raw: Buffer.from(mime).toString("base64url") },
-  });
-}
-
 // Empfaenger der zuletzt VERSENDETEN Mails (Ordner "Gesendet") holen – fuer die
 // Erkennung, ob ein Akquise-Entwurf inzwischen abgeschickt wurde. Liefert je
 // gefundener Empfaengeradresse den (neuesten) Versandzeitpunkt in ms.
