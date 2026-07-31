@@ -2,8 +2,9 @@
 
 // Abschluss-Leiste unter jeder Karte im Bereich "Kontaktiert":
 //   1. Ergebnis des Erstkontakts setzen (offen / erfolgreich / nicht erfolgreich)
-//   2. bei "erfolgreich": Preisliste als PDF herunterladen (haengt man selbst
-//      als Anhang an eine Mail – das Dashboard verschickt sie nicht)
+//   2. bei "erfolgreich": EIN Knopf legt im info@-Postfach einen Gmail-Entwurf
+//      an, an dem die Preisliste als PDF haengt. Verschickt wird nichts – der
+//      Entwurt wird in Gmail gelesen und von Hand abgeschickt.
 //   3. danach: Angebot erstellen -> uebergibt die Firma an den Vertrieb
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -12,7 +13,7 @@ import {
   ThumbsUp,
   ThumbsDown,
   CircleDashed,
-  FileDown,
+  MailPlus,
   FileText,
   Check,
   ExternalLink,
@@ -54,15 +55,43 @@ export default function AbschlussAktionen({ daten }: { daten: AbschlussDaten }) 
   const router = useRouter();
   const [, startTransition] = useTransition();
 
-  // Ob die Preisliste schon erzeugt wurde (Server merkt sich das beim Download)
+  // Ob der Preislisten-Entwurf schon angelegt wurde
   const [erstellt, setErstellt] = useState(!!daten.preislisteErstelltAm);
+  const [busy, setBusy] = useState(false);
+  const [meldung, setMeldung] = useState<string | null>(null);
+  const [fehler, setFehler] = useState(false);
 
-  // Nach dem Download den Serverstand nachziehen, damit der Hinweis unten
-  // und der Angebots-Check stimmen.
-  function nachDownload() {
-    setErstellt(true);
-    // kurz warten, bis der Download-Request serverseitig durch ist
-    setTimeout(() => startTransition(() => router.refresh()), 1200);
+  async function entwurfAnlegen() {
+    setBusy(true);
+    setFehler(false);
+    setMeldung(null);
+    try {
+      const res = await fetch("/api/akquise/preisliste/entwurf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prepId: daten.id }),
+      });
+      const d = (await res.json().catch(() => ({}))) as {
+        erstellt?: boolean;
+        empfaenger?: string;
+        fehler?: string;
+      };
+      if (!res.ok || !d.erstellt) {
+        setFehler(true);
+        setMeldung(d.fehler ?? "Entwurf konnte nicht angelegt werden.");
+        return;
+      }
+      setErstellt(true);
+      setMeldung(
+        `Entwurf an ${d.empfaenger} liegt im info@-Postfach — dort durchlesen und abschicken.`
+      );
+      startTransition(() => router.refresh());
+    } catch {
+      setFehler(true);
+      setMeldung("Entwurf konnte nicht angelegt werden.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   // Ohne erzeugte Preisliste nachfragen – laut Ablauf soll sie vor dem Angebot
@@ -70,7 +99,7 @@ export default function AbschlussAktionen({ daten }: { daten: AbschlussDaten }) 
   function angebotPruefen(e: React.MouseEvent) {
     if (erstellt) return;
     const weiter = window.confirm(
-      `Für „${daten.firma}" wurde noch keine Preisliste erzeugt.\n\nSie sollte vor dem Angebot beim Kunden sein. Trotzdem direkt ein Angebot erstellen?`
+      `Für „${daten.firma}" wurde noch kein Preislisten-Entwurf angelegt.\n\nDie Preisliste sollte vor dem Angebot beim Kunden sein. Trotzdem direkt ein Angebot erstellen?`
     );
     if (!weiter) e.preventDefault();
   }
@@ -118,15 +147,24 @@ export default function AbschlussAktionen({ daten }: { daten: AbschlussDaten }) 
             </Link>
           ) : (
             <>
-              <a
-                href={`/api/akquise/preisliste/pdf?prepId=${encodeURIComponent(daten.id)}`}
-                onClick={nachDownload}
-                title="Preisliste als PDF herunterladen und selbst an eine Mail anhängen"
-                className="flex items-center gap-2 rounded-xl border border-line bg-white/5 px-4 py-2 text-sm font-semibold text-ink transition hover:border-accent hover:text-accent"
+              <button
+                type="button"
+                onClick={entwurfAnlegen}
+                disabled={busy}
+                title={
+                  daten.email
+                    ? "Legt im info@-Postfach einen Mail-Entwurf mit der Preisliste als PDF-Anhang an"
+                    : "Für diese Firma ist keine E-Mail-Adresse hinterlegt — bitte oben ergänzen und speichern"
+                }
+                className="flex items-center gap-2 rounded-xl border border-line bg-white/5 px-4 py-2 text-sm font-semibold text-ink transition hover:border-accent hover:text-accent disabled:opacity-60"
               >
-                <FileDown className="h-4 w-4" />
-                {erstellt ? "Preisliste (PDF) erneut" : "Preisliste als PDF"}
-              </a>
+                <MailPlus className="h-4 w-4" />
+                {busy
+                  ? "Entwurf wird angelegt …"
+                  : erstellt
+                    ? "Preislisten-Entwurf erneut"
+                    : "Preisliste als Mail-Entwurf"}
+              </button>
 
               <Link
                 href={`/angebote/neu?prepId=${encodeURIComponent(daten.id)}`}
@@ -141,10 +179,16 @@ export default function AbschlussAktionen({ daten }: { daten: AbschlussDaten }) 
           {daten.preislisteErstelltAm && (
             <span className="flex items-center gap-1.5 text-xs text-emerald-300">
               <Check className="h-3.5 w-3.5" />
-              Preisliste erstellt am {daten.preislisteErstelltAm}
+              Preislisten-Entwurf vom {daten.preislisteErstelltAm}
             </span>
           )}
         </div>
+      )}
+
+      {meldung && (
+        <p className={"text-xs " + (fehler ? "text-rose-400" : "text-emerald-300")}>
+          {meldung}
+        </p>
       )}
     </div>
   );
