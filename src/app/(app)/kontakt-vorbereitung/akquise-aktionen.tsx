@@ -9,9 +9,15 @@ import { Mails, RefreshCw, Info } from "lucide-react";
 export default function AkquiseAktionen({
   branche,
   brancheLabel,
+  konto = null,
+  kontoLabel = null,
 }: {
   branche: string | null;
   brancheLabel: string | null;
+  // Gewaehltes Konto (Miko/Nevio) – begrenzt die Sammel-Entwuerfe darauf.
+  // null = Reiter "Alle": ganze Branche.
+  konto?: string | null;
+  kontoLabel?: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -28,7 +34,7 @@ export default function AkquiseAktionen({
       const res = await fetch("/api/akquise/entwuerfe-branche", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ branche }),
+        body: JSON.stringify({ branche, konto }),
       });
       if (!res.ok) throw new Error();
       const d = (await res.json()) as {
@@ -93,7 +99,7 @@ export default function AkquiseAktionen({
           {busy === "entwuerfe"
             ? "Erstellt Entwürfe …"
             : brancheLabel
-              ? `E-Mail-Entwürfe für „${brancheLabel}"`
+              ? `E-Mail-Entwürfe für „${brancheLabel}"${kontoLabel ? ` · ${kontoLabel}` : ""}`
               : "E-Mail-Entwürfe erstellen"}
         </button>
         <button

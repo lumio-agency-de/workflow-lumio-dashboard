@@ -22,10 +22,14 @@ export async function POST(request: Request) {
     return new Response("Branche fehlt", { status: 400 });
   }
 
+  // Optional auf ein Konto (Miko/Nevio) begrenzt – der Reiter der Seite.
+  const konto = String(body.konto ?? "").trim() || null;
+
   const ergebnis = await entwuerfeFuerBranche(
     branche,
     session.user.id,
-    session.user.name ?? undefined
+    session.user.name ?? undefined,
+    konto
   );
   revalidatePath("/kontakt-vorbereitung");
   return NextResponse.json(ergebnis);

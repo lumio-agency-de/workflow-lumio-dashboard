@@ -21,3 +21,13 @@ export const TEAM_LABELS: Record<string, string> = {
 export function labelForUsername(username: string): string {
   return TEAM_LABELS[username] ?? username.charAt(0).toUpperCase() + username.slice(1);
 }
+
+// Die beiden Konten, nach denen die Akquise aufgeteilt ist. "info" ist ein
+// gemeinsames Postfach und bekommt bewusst KEINE eigene Spalte.
+export const AKQUISE_KONTEN = ["miko", "nevio"] as const;
+export type AkquiseKonto = (typeof AKQUISE_KONTEN)[number];
+
+// Prueft, ob ein Login-Name eines der Akquise-Konten ist.
+export function istAkquiseKonto(name: string | null | undefined): name is AkquiseKonto {
+  return !!name && (AKQUISE_KONTEN as readonly string[]).includes(name);
+}
