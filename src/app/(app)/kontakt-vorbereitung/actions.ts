@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { ensureWiedervorlage, entferneWiedervorlage } from "@/lib/akquise-wiedervorlage";
+import { istAkquiseKonto } from "@/lib/team";
 
 // Nur eingeloggte Nutzer. Server-Actions sind offene POST-Endpunkte – ohne
 // diesen Wachposten koennte sie jeder unangemeldet aufrufen.
@@ -12,6 +13,15 @@ async function requireSession() {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Nicht angemeldet");
   return session;
+}
+
+// Welchem Konto (Miko/Nevio) eine neue Firma zugeschlagen wird: dem im
+// Formular mitgegebenen Reiter, sonst dem eigenen Login. Die Kontakt-
+// Vorbereitung ist danach aufgeteilt.
+function zielKonto(formData: FormData, eigenerName?: string | null): string | null {
+  const gewaehlt = String(formData.get("wer") ?? "").trim();
+  if (istAkquiseKonto(gewaehlt)) return gewaehlt;
+  return eigenerName ?? null;
 }
 
 // Eine Firma aus der Lead-Liste (Prospect) in die Kontakt-Vorbereitung uebernehmen.
@@ -41,7 +51,7 @@ export async function addFromProspect(formData: FormData) {
       // Mangel-Hinweis des Lead-Tools als Startpunkt uebernehmen
       websiteMaengel: p.grund,
       websiteStatus: p.website ? "unbekannt" : "keine",
-      erstelltVon: session?.user?.username ?? null,
+      erstelltVon: zielKonto(formData, session?.user?.username),
     },
   });
   revalidatePath("/kontakt-vorbereitung");
@@ -63,7 +73,7 @@ export async function addManual(formData: FormData) {
       telefon: String(formData.get("telefon") ?? "").trim(),
       email: String(formData.get("email") ?? "").trim(),
       website: String(formData.get("website") ?? "").trim(),
-      erstelltVon: session?.user?.username ?? null,
+      erstelltVon: zielKonto(formData, session?.user?.username),
     },
   });
   revalidatePath("/kontakt-vorbereitung");
@@ -77,9 +87,15 @@ export async function updatePrep(formData: FormData) {
 
   const status = String(formData.get("status") ?? "offen");
 
+  // "Zuständig" gibt es nur auf der Kontakt-Vorbereitung. Fehlt das Feld
+  // (z. B. im Bereich "Kontaktiert"), bleibt die Zuordnung unangetastet.
+  const besitzerGesetzt = formData.has("erstelltVon");
+  const besitzer = String(formData.get("erstelltVon") ?? "").trim();
+
   await prisma.contactPrep.update({
     where: { id },
     data: {
+      ...(besitzerGesetzt ? { erstelltVon: besitzer || null } : {}),
       firma: String(formData.get("firma") ?? "").trim() || "(ohne Namen)",
       ort: String(formData.get("ort") ?? "").trim(),
       telefon: String(formData.get("telefon") ?? "").trim(),

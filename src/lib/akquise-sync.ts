@@ -26,13 +26,21 @@ export type EntwuerfeErgebnis = {
 export async function entwuerfeFuerBranche(
   branche: string,
   fallbackUserId: string,
-  absender?: string
+  absender?: string,
+  // Konto (Login-Name), auf das die Sammel-Aktion begrenzt wird – passend zum
+  // gewaehlten Reiter. Ohne Angabe ("Alle") laeuft sie ueber die ganze Branche.
+  konto?: string | null
 ): Promise<EntwuerfeErgebnis> {
   // Nur Firmen, fuer die noch KEIN Entwurf existiert (mailEntwurfAm = null).
   // So kann der Knopf gefahrlos mehrfach geklickt werden (z. B. wenn Vercel
   // bei vielen Firmen ins Zeitlimit laeuft) und macht dupfrei dort weiter.
   const preps = await prisma.contactPrep.findMany({
-    where: { branche, status: { not: "kontaktiert" }, mailEntwurfAm: null },
+    where: {
+      branche,
+      status: { not: "kontaktiert" },
+      mailEntwurfAm: null,
+      ...(konto ? { erstelltVon: konto } : {}),
+    },
     orderBy: { createdAt: "desc" },
   });
 

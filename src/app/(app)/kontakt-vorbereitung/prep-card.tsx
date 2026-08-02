@@ -16,7 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { updatePrep, deletePrep, deleteLeadKomplett } from "./actions";
-import { colorForUsername, labelForUsername } from "@/lib/team";
+import { AKQUISE_KONTEN, colorForUsername, labelForUsername } from "@/lib/team";
 
 export type PrepData = {
   id: string;
@@ -53,12 +53,21 @@ export default function PrepCard({
   prep,
   katalog,
   footer,
+  zeigeBesitzer = true,
+  besitzerWahl = false,
 }: {
   prep: PrepData;
   katalog: string[];
   // Optionaler Zusatzbereich am Fuss der Karte. Der Bereich "Kontaktiert"
   // haengt hier seine Abschluss-Leiste ein (Ergebnis, Preisliste, Angebot).
   footer?: React.ReactNode;
+  // Farbiger Namens-Marker im Kopf. In der nach Konto getrennten Kontakt-
+  // Vorbereitung ueberfluessig (der Reiter sagt es schon), im Bereich
+  // "Kontaktiert" und in der Sammelansicht dagegen nuetzlich.
+  zeigeBesitzer?: boolean;
+  // Auswahlfeld "Zuständig" – damit Firmen zwischen Miko und Nevio
+  // wechseln koennen (und Alt-Eintraege ohne Konto zuordenbar bleiben).
+  besitzerWahl?: boolean;
 }) {
   // Ausgewaehlte Leistungen als State (fuer die Chip-Auswahl)
   const initial = prep.empfohleneLeistungen
@@ -150,7 +159,7 @@ export default function PrepCard({
             )}
             {/* Wer diese Firma in die Vorbereitung geschoben hat – in der
                 Team-Farbe aus dem Kalender (Miko blau, Nevio violett). */}
-            {prep.erstelltVon && (
+            {zeigeBesitzer && prep.erstelltVon && (
               <span
                 title={`Übernommen von ${labelForUsername(prep.erstelltVon)}`}
                 className="rounded-full border px-2 py-0.5 text-[11px] font-medium"
@@ -332,16 +341,41 @@ export default function PrepCard({
               ))}
             </div>
           </div>
-          <label className="flex flex-col gap-1 text-xs text-muted">
-            Status
-            <select name="status" defaultValue={prep.status} className={inputClass}>
-              {STATUS.map((s) => (
-                <option key={s.key} value={s.key}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className={"grid gap-3 " + (besitzerWahl ? "grid-cols-2" : "grid-cols-1")}>
+            <label className="flex flex-col gap-1 text-xs text-muted">
+              Status
+              <select name="status" defaultValue={prep.status} className={inputClass}>
+                {STATUS.map((s) => (
+                  <option key={s.key} value={s.key}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {/* Zuständig: schiebt die Firma in die Liste des jeweiligen Kontos. */}
+            {besitzerWahl && (
+              <label className="flex flex-col gap-1 text-xs text-muted">
+                Zuständig
+                <select
+                  name="erstelltVon"
+                  defaultValue={prep.erstelltVon ?? ""}
+                  className={inputClass}
+                >
+                  <option value="">— niemand —</option>
+                  {/* Fremder Login-Name (z. B. "info") bleibt erhalten */}
+                  {prep.erstelltVon &&
+                    !(AKQUISE_KONTEN as readonly string[]).includes(prep.erstelltVon) && (
+                      <option value={prep.erstelltVon}>{labelForUsername(prep.erstelltVon)}</option>
+                    )}
+                  {AKQUISE_KONTEN.map((k) => (
+                    <option key={k} value={k}>
+                      {labelForUsername(k)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
         </div>
 
         {/* Notizen */}
