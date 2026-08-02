@@ -119,6 +119,7 @@ async function KontaktiertPageInner({ searchParams }: PageProps) {
     notiz: p.notiz,
     ausLeads: !!p.prospectId,
     aufhaenger: p.prospect?.aufhaenger || undefined,
+    erstelltVon: p.erstelltVon,
   }));
 
   // Zusatzdaten fuer die Abschluss-Leiste (Ergebnis, Preisliste, Angebot)
