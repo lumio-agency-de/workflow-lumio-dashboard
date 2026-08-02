@@ -10,6 +10,7 @@ import { auth } from "@/auth";
 import { PageHeader } from "@/components/panel";
 import { Reveal } from "@/components/reveal";
 import { brancheLabel } from "@/lib/akquise";
+import { AKQUISE_KONTEN, colorForUsername, istAkquiseKonto, labelForUsername } from "@/lib/team";
 import { formatDate } from "@/lib/format";
 import { googleConfigured } from "@/lib/env";
 import { syncKontaktiertMitGmail } from "@/lib/akquise-sync";
@@ -30,7 +31,7 @@ const ERGEBNISSE = [
 type ErgebnisKey = (typeof ERGEBNISSE)[number]["key"];
 
 type PageProps = {
-  searchParams: Promise<{ branche?: string; ergebnis?: string }>;
+  searchParams: Promise<{ branche?: string; ergebnis?: string; wer?: string }>;
 };
 
 export default async function KontaktiertPage(props: PageProps) {
@@ -43,7 +44,11 @@ export default async function KontaktiertPage(props: PageProps) {
 }
 
 async function KontaktiertPageInner({ searchParams }: PageProps) {
-  const { branche: brancheParam, ergebnis: ergebnisParam } = await searchParams;
+  const {
+    branche: brancheParam,
+    ergebnis: ergebnisParam,
+    wer: werParam,
+  } = await searchParams;
   const session = await auth();
 
   // Beim Laden mit dem info@-Sent-Ordner abgleichen (fuellt diese Liste). Nie fatal.
@@ -60,10 +65,35 @@ async function KontaktiertPageInner({ searchParams }: PageProps) {
     ? (ergebnisParam as ErgebnisKey)
     : "offen";
 
-  // Zaehler je Unterkategorie fuer die Umschalter oben
+  // Aufteilung nach Konto – wie in der Kontakt-Vorbereitung: jeder sieht
+  // beim Oeffnen zuerst seine eigenen Firmen, "Alle" zeigt den Gesamtbestand.
+  const eigenesKonto = session?.user?.username ?? "";
+  const aktivesKonto =
+    werParam === "alle" || istAkquiseKonto(werParam)
+      ? werParam
+      : istAkquiseKonto(eigenesKonto)
+        ? eigenesKonto
+        : "alle";
+  const kontoFilter = aktivesKonto === "alle" ? {} : { erstelltVon: aktivesKonto };
+
+  // Kontaktierte Firmen je Konto – Zaehler an den Konto-Reitern.
+  const proKonto = await prisma.contactPrep.groupBy({
+    by: ["erstelltVon"],
+    where: { status: "kontaktiert" },
+    _count: { _all: true },
+  });
+  const anzahlKonto = (key: string) =>
+    key === "alle"
+      ? proKonto.reduce((s, g) => s + g._count._all, 0)
+      : (proKonto.find((g) => g.erstelltVon === key)?._count._all ?? 0);
+  const ohneKonto = proKonto
+    .filter((g) => !istAkquiseKonto(g.erstelltVon))
+    .reduce((s, g) => s + g._count._all, 0);
+
+  // Zaehler je Unterkategorie fuer die Umschalter oben (im gewaehlten Konto)
   const ergebnisGruppen = await prisma.contactPrep.groupBy({
     by: ["ergebnis"],
-    where: { status: "kontaktiert" },
+    where: { status: "kontaktiert", ...kontoFilter },
     _count: { _all: true },
   });
   const anzahlJeErgebnis = new Map(
@@ -73,7 +103,7 @@ async function KontaktiertPageInner({ searchParams }: PageProps) {
   // Branchen-Chips zaehlen nur innerhalb der aktiven Unterkategorie.
   const gruppen = await prisma.contactPrep.groupBy({
     by: ["branche"],
-    where: { status: "kontaktiert", ergebnis: aktivesErgebnis },
+    where: { status: "kontaktiert", ergebnis: aktivesErgebnis, ...kontoFilter },
     _count: { _all: true },
     orderBy: { _count: { branche: "desc" } },
   });
@@ -90,6 +120,7 @@ async function KontaktiertPageInner({ searchParams }: PageProps) {
     where: {
       status: "kontaktiert",
       ergebnis: aktivesErgebnis,
+      ...kontoFilter,
       ...(aktiveBranche ? { branche: aktiveBranche } : {}),
     },
     orderBy: [{ mailGesendetAm: "desc" }, { updatedAt: "desc" }],
@@ -140,18 +171,19 @@ async function KontaktiertPageInner({ searchParams }: PageProps) {
     ])
   );
 
-  // Link-Ziel fuer die Umschalter: Branchenfilter faellt beim Wechsel weg,
-  // weil er sich auf die vorherige Unterkategorie bezog.
-  const ergebnisHref = (key: ErgebnisKey) =>
-    key === "offen" ? "/kontaktiert" : `/kontaktiert?ergebnis=${key}`;
-
-  const brancheHref = (key: string | null) => {
-    const params = new URLSearchParams();
-    if (aktivesErgebnis !== "offen") params.set("ergebnis", aktivesErgebnis);
-    if (key) params.set("branche", key);
-    const qs = params.toString();
-    return qs ? `/kontaktiert?${qs}` : "/kontaktiert";
+  // Link-Ziel der Umschalter. Das Konto bleibt immer erhalten; der
+  // Branchenfilter faellt beim Wechsel der Unterkategorie weg, weil er sich
+  // auf die vorherige bezog.
+  const href = (opts: { wer?: string; ergebnis?: ErgebnisKey; branche?: string | null }) => {
+    const params = new URLSearchParams({ wer: opts.wer ?? aktivesKonto });
+    const erg = opts.ergebnis ?? aktivesErgebnis;
+    if (erg !== "offen") params.set("ergebnis", erg);
+    if (opts.branche) params.set("branche", opts.branche);
+    return `/kontaktiert?${params.toString()}`;
   };
+
+  const ergebnisHref = (key: ErgebnisKey) => href({ ergebnis: key });
+  const brancheHref = (key: string | null) => href({ branche: key });
 
   const gesamt = ergebnisGruppen.reduce((s, g) => s + g._count._all, 0);
   const chipBasis =
@@ -164,8 +196,65 @@ async function KontaktiertPageInner({ searchParams }: PageProps) {
       <Reveal>
         <PageHeader
           title="Kontaktiert"
-          subtitle={`${gesamt} Firmen bereits per Mail angeschrieben`}
+          subtitle={
+            (aktivesKonto === "alle" ? "Alle Konten" : labelForUsername(aktivesKonto)) +
+            ` · ${gesamt} Firmen bereits per Mail angeschrieben`
+          }
         />
+      </Reveal>
+
+      {/* Konto-Reiter: Miko / Nevio / Alle – wie in der Kontakt-Vorbereitung */}
+      <Reveal delay={0.02}>
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          {AKQUISE_KONTEN.map((k) => {
+            const aktiv = k === aktivesKonto;
+            const farbe = colorForUsername(k);
+            return (
+              <a
+                key={k}
+                href={href({ wer: k })}
+                className={
+                  "flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition " +
+                  (aktiv ? "" : "border-line bg-white/5 text-muted hover:text-ink")
+                }
+                style={
+                  aktiv
+                    ? {
+                        borderColor: `${farbe}59`,
+                        backgroundColor: `${farbe}1f`,
+                        color: farbe,
+                      }
+                    : undefined
+                }
+              >
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: farbe }}
+                  aria-hidden
+                />
+                {labelForUsername(k)}
+                <span className="text-xs font-normal opacity-70">{anzahlKonto(k)}</span>
+              </a>
+            );
+          })}
+          <a
+            href={href({ wer: "alle" })}
+            className={
+              "flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition " +
+              (aktivesKonto === "alle"
+                ? "border-accent/40 bg-accent/10 text-accent"
+                : "border-line bg-white/5 text-muted hover:text-ink")
+            }
+          >
+            Alle
+            <span className="text-xs font-normal opacity-70">{anzahlKonto("alle")}</span>
+          </a>
+          {aktivesKonto === "alle" && ohneKonto > 0 && (
+            <span className="text-xs text-muted">
+              {ohneKonto} ohne Zuordnung — unten je Firma auf „Zuständig“ setzen
+            </span>
+          )}
+        </div>
       </Reveal>
 
       {/* Unterkategorien: nach Ergebnis des Erstkontakts umschalten */}
@@ -201,7 +290,7 @@ async function KontaktiertPageInner({ searchParams }: PageProps) {
               href={brancheHref(null)}
               className={chipBasis + (!aktiveBranche ? chipAktiv : chipInaktiv)}
             >
-              Alle
+              Alle Branchen
             </a>
             {branchenMitDaten.map((b) => (
               <a
@@ -225,7 +314,10 @@ async function KontaktiertPageInner({ searchParams }: PageProps) {
             <MailCheck className="h-8 w-8 text-muted" />
             <p className="text-sm text-muted">
               {aktivesErgebnis === "offen"
-                ? "Keine offenen Kontakte. Sobald eine Erstkontakt-Mail aus dem info@-Postfach rausgeht, erscheint die Firma hier automatisch."
+                ? (aktivesKonto === "alle"
+                    ? "Keine offenen Kontakte."
+                    : `Keine offenen Kontakte bei ${labelForUsername(aktivesKonto)} — schau unter „Alle“.`) +
+                  " Sobald eine Erstkontakt-Mail aus dem info@-Postfach rausgeht, erscheint die Firma hier automatisch."
                 : `Hier liegt noch keine Firma. Setze das Ergebnis einer Firma unter „Noch offen" auf „${
                     ERGEBNISSE.find((e) => e.key === aktivesErgebnis)?.label
                   }".`}
@@ -239,6 +331,8 @@ async function KontaktiertPageInner({ searchParams }: PageProps) {
               <PrepCard
                 prep={prep}
                 katalog={katalog}
+                zeigeBesitzer={aktivesKonto === "alle"}
+                besitzerWahl
                 footer={
                   abschluss.has(prep.id) ? (
                     <AbschlussAktionen daten={abschluss.get(prep.id)!} />
