@@ -105,6 +105,7 @@ async function KontaktVorbereitungPageInner({ searchParams }: PageProps) {
     notiz: p.notiz,
     ausLeads: !!p.prospectId,
     aufhaenger: p.prospect?.aufhaenger || undefined,
+    erstelltVon: p.erstelltVon,
   }));
 
   const offen = cards.filter((c) => c.status !== "kontaktiert").length;

@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { updatePrep, deletePrep, deleteLeadKomplett } from "./actions";
+import { colorForUsername, labelForUsername } from "@/lib/team";
 
 export type PrepData = {
   id: string;
@@ -34,6 +35,9 @@ export type PrepData = {
   notiz: string;
   ausLeads: boolean;
   aufhaenger?: string;
+  // Login-Name dessen, der die Firma in die Vorbereitung geschoben hat
+  // ("miko" | "nevio" | "info") – wird als farbiger Namens-Marker gezeigt.
+  erstelltVon?: string | null;
 };
 
 const inputClass =
@@ -142,6 +146,21 @@ export default function PrepCard({
             {prep.ausLeads && (
               <span className="rounded-full border border-line bg-white/5 px-2 py-0.5 text-[11px] text-muted">
                 aus Leads
+              </span>
+            )}
+            {/* Wer diese Firma in die Vorbereitung geschoben hat – in der
+                Team-Farbe aus dem Kalender (Miko blau, Nevio violett). */}
+            {prep.erstelltVon && (
+              <span
+                title={`Übernommen von ${labelForUsername(prep.erstelltVon)}`}
+                className="rounded-full border px-2 py-0.5 text-[11px] font-medium"
+                style={{
+                  borderColor: `${colorForUsername(prep.erstelltVon)}59`,
+                  backgroundColor: `${colorForUsername(prep.erstelltVon)}1f`,
+                  color: colorForUsername(prep.erstelltVon),
+                }}
+              >
+                {labelForUsername(prep.erstelltVon)}
               </span>
             )}
           </div>
