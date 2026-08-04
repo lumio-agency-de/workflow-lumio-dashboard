@@ -4,6 +4,19 @@
 // neuen Branche im leadgen hier den Eintrag ergaenzen.
 
 export const BRANCHEN: { key: string; label: string }[] = [
+  // Tier 1 der Nischenstrategie (08/2026): B2B mit Budget – hier zuerst suchen.
+  // Anders als beim Handwerk hat hier fast jeder eine Website; der gute Lead
+  // ist "Seite kaputt/veraltet", nicht "keine Seite".
+  { key: "it-systemhaus", label: "IT-Systemhaus / MSP" },
+  { key: "unternehmensberatung", label: "Unternehmensberatung" },
+  { key: "anwalt", label: "Anwaltskanzlei (spezialisiert)" },
+  { key: "finanzberatung", label: "Finanzberater / Versicherungsmakler" },
+  // Tier 2: Zusatzmaerkte. Bei Steuerkanzleien ist der Aufhaenger Recruiting
+  // (Bewerber gewinnen), nicht Mandanten.
+  { key: "steuerberatung", label: "Steuerkanzlei" },
+  { key: "energiehandwerk", label: "Photovoltaik / Wärmepumpe / Sanierung" },
+  // Klassisches Handwerk & lokale Dienstleister – bewusst zurueckgestuft
+  // ("wir haben genug Auftraege"), aber weiterhin vollstaendig nutzbar.
   { key: "kfz", label: "KFZ-Werkstatt" },
   { key: "restaurant", label: "Restaurant / Gastro" },
   { key: "maler", label: "Maler" },
