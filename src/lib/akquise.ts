@@ -4,19 +4,7 @@
 // neuen Branche im leadgen hier den Eintrag ergaenzen.
 
 export const BRANCHEN: { key: string; label: string }[] = [
-  // Tier 1 der Nischenstrategie (08/2026): B2B mit Budget – hier zuerst suchen.
-  // Anders als beim Handwerk hat hier fast jeder eine Website; der gute Lead
-  // ist "Seite kaputt/veraltet", nicht "keine Seite".
-  { key: "it-systemhaus", label: "IT-Systemhaus / MSP" },
-  { key: "unternehmensberatung", label: "Unternehmensberatung" },
-  { key: "anwalt", label: "Anwaltskanzlei (spezialisiert)" },
-  { key: "finanzberatung", label: "Finanzberater / Versicherungsmakler" },
-  // Tier 2: Zusatzmaerkte. Bei Steuerkanzleien ist der Aufhaenger Recruiting
-  // (Bewerber gewinnen), nicht Mandanten.
-  { key: "steuerberatung", label: "Steuerkanzlei" },
-  { key: "energiehandwerk", label: "Photovoltaik / Wärmepumpe / Sanierung" },
-  // Klassisches Handwerk & lokale Dienstleister – bewusst zurueckgestuft
-  // ("wir haben genug Auftraege"), aber weiterhin vollstaendig nutzbar.
+  // Klassisches Handwerk & lokale Dienstleister (Mengengeschaeft).
   { key: "kfz", label: "KFZ-Werkstatt" },
   { key: "restaurant", label: "Restaurant / Gastro" },
   { key: "maler", label: "Maler" },
@@ -32,13 +20,10 @@ export const BRANCHEN: { key: string; label: string }[] = [
   { key: "gesundheit", label: "Gesundheit / Praxis" },
   { key: "gastgewerbe", label: "Hotel / Pension" },
 
-  // Oberes Gleis aus dem leadgen (config.ZIELGRUPPEN["mittel"], 08/2026).
-  // ACHTUNG Ueberschneidung mit Tier 1/2 oben: "steuerberater" hier und
-  // "steuerberatung" oben meinen dasselbe, ebenso "kanzlei" und "anwalt".
-  // Doppelte Schluessel = zwei Reiter fuer dieselbe Zielgruppe, weil die
-  // Reiter aus Prospect.branche entstehen. Miko + Nevio muessen sich auf je
-  // einen Schluessel einigen; der gewaehlte muss auch in leadgen/config.py
-  // BRANCHEN stehen, sonst findet der Runner dafuer nichts.
+  // Oberes Gleis: B2B mit Budget (leadgen config.ZIELGRUPPEN["mittel"]).
+  // Dort ist "keine Website" kein Kaufsignal — der gute Lead ist "Seite
+  // veraltet/Prozesse von Hand". Jeder Schluessel hier existiert auch in
+  // leadgen/config.py BRANCHEN, sonst laeuft die Suche ins Leere.
   { key: "steuerberater", label: "Steuerberater / Kanzlei" },
   { key: "kanzlei", label: "Rechtsanwalt / Notar" },
   { key: "ingenieurbuero", label: "Ingenieur- / Planungsbüro" },
