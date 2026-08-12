@@ -96,6 +96,7 @@ model Prospect {
   plz     String @default("")
   ort     String @default("")
   website String @default("")
+  groesse String @default("") // "klein" | "mittel" | "gross" | "" — Schaetzung des leadgen (checks/groesse.py)
 
   // Bewertung (auto, jeder Lauf frischt sie auf)
   segment     String @default("") // "1 – Heiß (keine Website)" …
