@@ -176,6 +176,7 @@ async function LeadsPageInner({ searchParams }: LeadsProps) {
       {/* Suche starten — gehoert zum Lead-Gen, nicht zur Spur */}
       <Reveal delay={0.05}>
         <SearchPanel
+          spur={spur}
           initialRequests={requests.map((r) => ({
             id: r.id,
             branche: r.branche,
