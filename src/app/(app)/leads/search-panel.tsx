@@ -9,6 +9,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Target, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
 import { BRANCHEN, QUELLEN, brancheLabel } from "@/lib/akquise";
+import { brancheFuerAds, type Spur } from "@/lib/spur";
 import { Panel } from "@/components/panel";
 import { createSearchRequest } from "./actions";
 
@@ -30,9 +31,15 @@ const AKTIV = new Set(["angefragt", "laeuft"]);
 
 export default function SearchPanel({
   initialRequests,
+  spur,
 }: {
   initialRequests: ReqView[];
+  spur: Spur;
 }) {
+  // In der Anzeigen-Spur nur die Branchen anbieten, in denen sich ein
+  // Anzeigenpaket ueberhaupt rechnet — sonst sucht man Leads, die man
+  // hinterher gar nicht anrufen will.
+  const branchen = spur === "ads" ? BRANCHEN.filter((b) => brancheFuerAds(b.key)) : BRANCHEN;
   const router = useRouter();
   const [requests, setRequests] = useState<ReqView[]>(initialRequests);
   const [pending, startTransition] = useTransition();
@@ -101,7 +108,7 @@ export default function SearchPanel({
           <label className="flex flex-col gap-1.5 text-sm">
             <span className="text-muted">Branche</span>
             <select name="branche" required className={inputClass} defaultValue="heizung-sanitaer">
-              {BRANCHEN.map((b) => (
+              {branchen.map((b) => (
                 <option key={b.key} value={b.key}>
                   {b.label}
                 </option>

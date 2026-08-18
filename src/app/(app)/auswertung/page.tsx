@@ -38,12 +38,19 @@ const MONATE = 6;
 export default async function AuswertungPage() {
   // Kern-Tabellen (Order/Offer) sind stabil, werden aber – wie vom Projekt
   // vorgegeben – trotzdem abgesichert. Prospect kann fehlen.
-  const [orders, offers, prospectGroups, calView] = await Promise.all([
+  const [orders, offers, prospectGroups, ohneSpur, calView] = await Promise.all([
     prisma.order.findMany().catch(() => []),
     prisma.offer.findMany().catch(() => []),
-    prisma.prospect
-      .groupBy({ by: ["status"], _count: { _all: true } })
+    // Funnel der Website-Akquise. Der CRM-Status liegt seit 18.08.2026 je Spur
+    // in ProspectTrack (siehe lib/spur.ts) — hier zaehlt die Website-Spur.
+    prisma.prospectTrack
+      .groupBy({ by: ["status"], where: { spur: "website" }, _count: { _all: true } })
       .catch(() => [] as { status: string; _count: { _all: number } }[]),
+    // Frisch aus dem leadgen eingespuelte Firmen haben noch keine Spur-Zeile
+    // und gelten als "neu".
+    prisma.prospect
+      .count({ where: { tracks: { none: { spur: "website" } } } })
+      .catch(() => 0),
     getCalendarView().catch(() => null),
   ]);
 
@@ -54,6 +61,7 @@ export default async function AuswertungPage() {
 
   const prospectCounts: Record<string, number> = {};
   for (const g of prospectGroups) prospectCounts[g.status] = g._count._all;
+  if (ohneSpur > 0) prospectCounts["neu"] = (prospectCounts["neu"] ?? 0) + ohneSpur;
   const funnel = computeFunnel(prospectCounts);
   const prospectGesamt = Object.values(prospectCounts).reduce((s, n) => s + n, 0);
 
