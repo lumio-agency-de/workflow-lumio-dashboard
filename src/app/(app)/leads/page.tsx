@@ -1,23 +1,41 @@
 // Leads-Bereich (Akquise): Suche starten + die daraus entstehenden Listen
 // abarbeiten. Die Prospects kommen aus dem leadgen-Tool (via Runner in die
 // DB gespuelt); hier werden sie angerufen und abgehakt.
+//
+// Zwei Spuren, oben umschaltbar (siehe lib/spur.ts):
+//   Website  – Signal ist eine schwache oder fehlende Website
+//   Anzeigen – Signal ist freie Kapazitaet; Website-Score sagt hier nichts aus
+// Dieselben Firmen, zwei getrennte Verlaeufe. Der Status liegt deshalb in
+// ProspectTrack und nicht am Prospect.
 import { Target } from "lucide-react";
+import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { Panel, PageHeader } from "@/components/panel";
 import { Reveal } from "@/components/reveal";
 import { brancheLabel } from "@/lib/akquise";
+import {
+  SPUREN,
+  spurAusParam,
+  spurLabel,
+  spurHinweis,
+  brancheFuerAds,
+  OFFENE_STATUS,
+  type Spur,
+} from "@/lib/spur";
 import SearchPanel from "./search-panel";
 import ProspectRow from "./prospect-row";
+import AdsRow from "./ads-row";
 import { DbUnavailable, isMissingTableError } from "@/components/db-unavailable";
 
 export const dynamic = "force-dynamic";
 
 type LeadsProps = {
-  searchParams: Promise<{ branche?: string; nur_offen?: string }>;
+  searchParams: Promise<{ spur?: string; branche?: string; nur_offen?: string }>;
 };
 
-// Faengt den Fall ab, dass die Prospect-/SearchRequest-Tabellen noch nicht
-// migriert sind (dann zeigt die Seite einen Hinweis statt einer 500-Seite).
+// Faengt den Fall ab, dass die Prospect-/SearchRequest-/ProspectTrack-Tabellen
+// noch nicht migriert sind (dann zeigt die Seite einen Hinweis statt einer
+// 500-Seite).
 export default async function LeadsPage(props: LeadsProps) {
   try {
     return await LeadsPageInner(props);
@@ -27,42 +45,69 @@ export default async function LeadsPage(props: LeadsProps) {
   }
 }
 
-async function LeadsPageInner({
-  searchParams,
-}: LeadsProps) {
-  const { branche: brancheParam, nur_offen } = await searchParams;
+// Firmen ohne Zeile in dieser Spur gelten als "neu" — der leadgen-Runner legt
+// nur Prospects an, keine Spuren. Deshalb "keine Zeile ODER offener Status".
+function offenFilter(spur: Spur): Prisma.ProspectWhereInput {
+  return {
+    OR: [
+      { tracks: { none: { spur } } },
+      { tracks: { some: { spur, status: { in: [...OFFENE_STATUS] } } } },
+    ],
+  };
+}
+
+// Grundfilter je Spur. In der Website-Spur verschwinden Firmen, sobald sie in
+// der Kontakt-Vorbereitung liegen — in der Anzeigen-Spur ausdruecklich nicht:
+// eine Firma, der wir gerade eine Website anbieten, bleibt ein gueltiger
+// Anzeigen-Lead. Genau darum geht die Trennung.
+function basisFilter(spur: Spur): Prisma.ProspectWhereInput {
+  return spur === "website" ? { contactPrep: { is: null } } : {};
+}
+
+async function LeadsPageInner({ searchParams }: LeadsProps) {
+  const { spur: spurParam, branche: brancheParam, nur_offen } = await searchParams;
+  const spur = spurAusParam(spurParam);
   const nurOffen = nur_offen === "1";
 
-  // Branchen, die tatsaechlich noch offene Prospects haben (+ Anzahl), fuer die
-  // Filter-Chips. Firmen, die bereits in der Kontakt-Vorbereitung sind, zaehlen
-  // hier nicht mehr mit (sie sind aus der Lead-Liste "verschwunden").
+  // Branchen, die in dieser Spur ueberhaupt Firmen haben (+ Anzahl) fuer die
+  // Filter-Chips. In der Anzeigen-Spur bleiben nur die freigegebenen Branchen.
   const gruppen = await prisma.prospect.groupBy({
     by: ["branche"],
-    where: { contactPrep: { is: null } },
+    where: basisFilter(spur),
     _count: { _all: true },
     orderBy: { _count: { branche: "desc" } },
   });
-  const branchenMitDaten = gruppen.map((g) => ({
-    key: g.branche,
-    count: g._count._all,
-  }));
+  const branchenMitDaten = gruppen
+    .filter((g) => (spur === "ads" ? brancheFuerAds(g.branche) : true))
+    .map((g) => ({ key: g.branche, count: g._count._all }));
 
-  // Aktive Branche: aus der URL, sonst die mit den meisten Prospects.
+  // Aktive Branche: aus der URL, sonst die mit den meisten Firmen.
   const aktiveBranche =
     brancheParam && branchenMitDaten.some((b) => b.key === brancheParam)
       ? brancheParam
       : branchenMitDaten[0]?.key ?? null;
 
-  const prospects = aktiveBranche
+  const where: Prisma.ProspectWhereInput | null = aktiveBranche
+    ? {
+        branche: aktiveBranche,
+        ...basisFilter(spur),
+        ...(nurOffen ? offenFilter(spur) : {}),
+      }
+    : null;
+
+  // Sortierung: in der Website-Spur nach Mangel-Score, in der Anzeigen-Spur
+  // nach Betriebsgroesse (grosse Betriebe = mehr freie Kapazitaet moeglich).
+  const orderBy: Prisma.ProspectOrderByWithRelationInput[] =
+    spur === "ads"
+      ? [{ mitarbeiter: { sort: "desc", nulls: "last" } }, { name: "asc" }]
+      : [{ leadScore: "desc" }, { name: "asc" }];
+
+  const prospects = where
     ? await prisma.prospect.findMany({
-        where: {
-          branche: aktiveBranche,
-          // Bereits in die Kontakt-Vorbereitung uebernommene Firmen ausblenden.
-          contactPrep: { is: null },
-          ...(nurOffen ? { status: { in: ["neu", "kontaktiert", "interesse"] } } : {}),
-        },
-        orderBy: [{ leadScore: "desc" }, { name: "asc" }],
+        where,
+        orderBy,
         take: 500,
+        include: { tracks: { where: { spur } } },
       })
     : [];
 
@@ -70,8 +115,8 @@ async function LeadsPageInner({
     ? await prisma.prospect.count({
         where: {
           branche: aktiveBranche,
-          contactPrep: { is: null },
-          status: { in: ["neu", "kontaktiert", "interesse"] },
+          ...basisFilter(spur),
+          ...offenFilter(spur),
         },
       })
     : 0;
@@ -82,6 +127,16 @@ async function LeadsPageInner({
     take: 5,
   });
 
+  // Link-Bauer, damit Spur und Filter beim Klicken erhalten bleiben.
+  const href = (o: { spur?: Spur; branche?: string | null; nurOffen?: boolean }) => {
+    const p = new URLSearchParams();
+    p.set("spur", o.spur ?? spur);
+    const b = o.branche === undefined ? aktiveBranche : o.branche;
+    if (b) p.set("branche", b);
+    if (o.nurOffen ?? nurOffen) p.set("nur_offen", "1");
+    return `/leads?${p.toString()}`;
+  };
+
   return (
     <div>
       <Reveal>
@@ -91,9 +146,37 @@ async function LeadsPageInner({
         />
       </Reveal>
 
-      {/* Suche starten */}
+      {/* Spur-Umschalter: wechselt das ganze Arbeitsblatt (Liste + Spalten) */}
+      <Reveal delay={0.03}>
+        <div className="mt-6 flex flex-col gap-2">
+          <div className="inline-flex w-fit rounded-xl border border-line bg-white/5 p-1">
+            {SPUREN.map((s) => {
+              const aktiv = s === spur;
+              return (
+                <a
+                  key={s}
+                  href={href({ spur: s, branche: null })}
+                  aria-current={aktiv ? "page" : undefined}
+                  className={
+                    "rounded-lg px-4 py-1.5 text-sm transition " +
+                    (aktiv
+                      ? "bg-accent/15 text-accent"
+                      : "text-muted hover:text-ink")
+                  }
+                >
+                  {spurLabel(s)}
+                </a>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted">{spurHinweis(spur)}</p>
+        </div>
+      </Reveal>
+
+      {/* Suche starten — gehoert zum Lead-Gen, nicht zur Spur */}
       <Reveal delay={0.05}>
         <SearchPanel
+          spur={spur}
           initialRequests={requests.map((r) => ({
             id: r.id,
             branche: r.branche,
@@ -116,7 +199,7 @@ async function LeadsPageInner({
               return (
                 <a
                   key={b.key}
-                  href={`/leads?branche=${encodeURIComponent(b.key)}${nurOffen ? "&nur_offen=1" : ""}`}
+                  href={href({ branche: b.key })}
                   className={
                     "rounded-full border px-3 py-1.5 text-sm transition " +
                     (aktiv
@@ -139,9 +222,10 @@ async function LeadsPageInner({
           {!aktiveBranche ? (
             <div className="flex flex-col items-center gap-3 py-10 text-center">
               <Target className="h-8 w-8 text-muted" />
-              <p className="text-sm text-muted">
-                Noch keine Leads vorhanden. Starte oben eine Suche — die
-                Ergebnisse erscheinen hier, sobald der Lauf durch ist.
+              <p className="max-w-md text-sm text-muted">
+                {spur === "ads"
+                  ? "Noch keine Betriebe in der Anzeigen-Spur. Sie füllt sich aus derselben Lead-Suche — aktuell sind nur Heizung und Sanitär freigegeben, weil sich das Paket nur bei hohen Auftragswerten rechnet."
+                  : "Noch keine Leads vorhanden. Starte oben eine Suche — die Ergebnisse erscheinen hier, sobald der Lauf durch ist."}
               </p>
             </div>
           ) : (
@@ -150,11 +234,12 @@ async function LeadsPageInner({
                 <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
                   {brancheLabel(aktiveBranche)}
                   <span className="text-sm font-normal text-muted">
-                    · {prospects.length} angezeigt · {offenGesamt} offen
+                    · {spurLabel(spur)} · {prospects.length} angezeigt ·{" "}
+                    {offenGesamt} offen
                   </span>
                 </h2>
                 <a
-                  href={`/leads?branche=${encodeURIComponent(aktiveBranche)}${nurOffen ? "" : "&nur_offen=1"}`}
+                  href={href({ nurOffen: !nurOffen })}
                   className={
                     "rounded-lg border px-3 py-1.5 text-xs transition " +
                     (nurOffen
@@ -172,26 +257,43 @@ async function LeadsPageInner({
                 </p>
               ) : (
                 <ul className="flex flex-col divide-y divide-line">
-                  {prospects.map((p) => (
-                    <ProspectRow
-                      key={p.id}
-                      p={{
-                        id: p.id,
-                        name: p.name,
-                        ort: p.ort,
-                        telefon: p.telefon,
-                        website: p.website,
-                        segment: p.segment,
-                        leadScore: p.leadScore,
-                        grund: p.grund,
-                        aufhaenger: p.aufhaenger,
-                        status: p.status,
-                        ansprechpartner: p.ansprechpartner,
-                        reaktion: p.reaktion,
-                        notiz: p.notiz,
-                      }}
-                    />
-                  ))}
+                  {prospects.map((p) => {
+                    // Ohne Zeile in dieser Spur gilt die Firma als "neu".
+                    const t = p.tracks[0];
+                    const gemeinsam = {
+                      id: p.id,
+                      name: p.name,
+                      ort: p.ort,
+                      telefon: p.telefon,
+                      website: p.website,
+                      status: t?.status ?? "neu",
+                      ansprechpartner: t?.ansprechpartner ?? "",
+                      reaktion: t?.reaktion ?? "",
+                      notiz: t?.notiz ?? "",
+                    };
+                    return spur === "ads" ? (
+                      <AdsRow
+                        key={p.id}
+                        p={{
+                          ...gemeinsam,
+                          mitarbeiter: p.mitarbeiter,
+                          schaltetAnzeigen: p.schaltetAnzeigen,
+                          kapazitaetNotiz: p.kapazitaetNotiz,
+                        }}
+                      />
+                    ) : (
+                      <ProspectRow
+                        key={p.id}
+                        p={{
+                          ...gemeinsam,
+                          segment: p.segment,
+                          leadScore: p.leadScore,
+                          grund: p.grund,
+                          aufhaenger: p.aufhaenger,
+                        }}
+                      />
+                    );
+                  })}
                 </ul>
               )}
             </>

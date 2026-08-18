@@ -54,8 +54,24 @@ export default async function DashboardHome() {
   // Akquise-Kennzahlen parallel laden. Die Akquise-Tabellen sind evtl. noch
   // nicht migriert, daher jede Abfrage einzeln absichern (Fehler -> 0).
   const [offeneLeads, heisseLeads, inVorbereitung] = await Promise.all([
+    // Offene Leads der Website-Spur. Status liegt je Spur in ProspectTrack;
+    // Firmen ohne Zeile in der Spur gelten als "neu".
     prisma.prospect
-      .count({ where: { status: { in: ["neu", "kontaktiert", "interesse"] } } })
+      .count({
+        where: {
+          OR: [
+            { tracks: { none: { spur: "website" } } },
+            {
+              tracks: {
+                some: {
+                  spur: "website",
+                  status: { in: ["neu", "kontaktiert", "interesse"] },
+                },
+              },
+            },
+          ],
+        },
+      })
       .catch(() => 0),
     prisma.prospect.count({ where: { website: "" } }).catch(() => 0),
     prisma.contactPrep

@@ -105,6 +105,10 @@ model Prospect {
   aufhaenger  String @default("") // fertiger Gespraechseinstieg
 
   // CRM / manuell (Sync fasst diese Felder NIE an)
+  // ⚠️ ALTBESTAND ab 18.08.2026: Der gepflegte Status liegt jetzt in
+  // ProspectTrack (Spur "website" / "ads"). Diese Spalten behalten den Stand
+  // vor der Umstellung als Sicherung und werden von der App nicht mehr
+  // geschrieben. Nach ein paar Wochen ohne Probleme koennen sie weg.
   status          String    @default("neu") // neu | kontaktiert | interesse | kein_interesse | termin | erledigt
   ansprechpartner String    @default("")
   kontaktiertAm   DateTime? // gesetzt beim Abhaken
@@ -119,11 +123,51 @@ model Prospect {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  // Bewertung fuer die ANZEIGEN-Spur. Der Website-Score (segment/leadScore/
+  // designScore) sagt hier nichts aus: ein Betrieb mit perfekter Website kann
+  // ein erstklassiger Anzeigenkunde sein. Entscheidend ist freie Kapazitaet.
+  mitarbeiter        Int? // Anzahl Mitarbeiter — Kapazitaetsfilter (ab ~6)
+  schaltetAnzeigen   String    @default("unbekannt") // unbekannt | ja | nein (Meta-Werbebibliothek)
+  anzeigenGeprueftAm DateTime? // wann in der Werbebibliothek nachgesehen wurde
+  kapazitaetNotiz    String    @default("") // "14 Baeder/Jahr, Decke 24" — aus dem Telefonat
+
   // Verknuepfte Kontakt-Vorbereitung (optional, 1:1) — im Bereich Akquise
   contactPrep ContactPrep?
 
+  // CRM-Status je Spur (Website / Anzeigen) — siehe Modell ProspectTrack
+  tracks ProspectTrack[]
+
   @@index([branche, leadScore])
   @@index([status])
+}
+
+// Eine Spur = ein Angebot, das wir bei dieser Firma verfolgen:
+//   "website" – Website-/Relaunch-Verkauf (Signal: schwache oder keine Website)
+//   "ads"     – Meta-Anzeigenbetreuung   (Signal: freie Kapazitaet)
+// Eine Firma kann in BEIDEN Spuren gleichzeitig stehen — das ist sogar der
+// Regelfall: erst die Website verkaufen, vier Wochen spaeter die Anzeigen an
+// denselben zufriedenen Kunden. Deshalb haengt der CRM-Status an der Spur und
+// nicht am Prospect: sonst wuerde "erledigt" aus dem Website-Verkauf die Firma
+// auch aus der Anzeigen-Liste entfernen.
+model ProspectTrack {
+  id         String   @id @default(cuid())
+  prospectId String
+  prospect   Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+
+  spur String // "website" | "ads"
+
+  status          String    @default("neu") // neu | kontaktiert | interesse | kein_interesse | termin | erledigt
+  ansprechpartner String    @default("")
+  kontaktiertAm   DateTime? // gesetzt beim Abhaken
+  reaktion        String    @default("")
+  wiedervorlage   DateTime?
+  notiz           String    @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([prospectId, spur]) // je Firma und Spur genau eine Zeile
+  @@index([spur, status])
 }
 
 // Such-Auftrag: der "Suche starten"-Knopf im Dashboard legt so eine Zeile an

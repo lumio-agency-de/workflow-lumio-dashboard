@@ -17,7 +17,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { scoreClass } from "@/lib/akquise";
-import { updateProspect, deleteProspect } from "./actions";
+import { updateProspectTrack, deleteProspect } from "./actions";
 import { addFromProspect } from "@/app/(app)/kontakt-vorbereitung/actions";
 
 type P = {
@@ -99,12 +99,15 @@ export default function ProspectRow({ p }: { p: P }) {
     setWvSet(true);
   }
 
+  // Diese Zeile arbeitet immer auf der Website-Spur — die Anzeigen-Spur hat
+  // ihre eigene Zeile (ads-row.tsx) mit eigenem Status und eigener Notiz.
   function submit(felder: Record<string, string>) {
     const fd = new FormData();
     fd.set("id", p.id);
+    fd.set("spur", "website");
     for (const [k, v] of Object.entries(felder)) fd.set(k, v);
     startTransition(async () => {
-      await updateProspect(fd);
+      await updateProspectTrack(fd);
     });
   }
 
