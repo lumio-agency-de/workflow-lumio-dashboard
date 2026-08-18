@@ -32,8 +32,6 @@ export const BRANCHEN: { key: string; label: string }[] = [
   { key: "maler", label: "Maler" },
   { key: "elektriker", label: "Elektriker" },
   { key: "heizung-sanitaer", label: "Heizung / Sanitär" },
-  { key: "energiehandwerk", label: "Energiehandwerk (PV / Wärmepumpe)" },
-  { key: "it-systemhaus", label: "IT-Systemhaus" },
   { key: "dachdecker", label: "Dachdecker" },
   { key: "schreiner", label: "Schreiner" },
   { key: "fliesenleger", label: "Fliesenleger" },
@@ -43,7 +41,6 @@ export const BRANCHEN: { key: string; label: string }[] = [
   { key: "kosmetik", label: "Kosmetik / Nagelstudio" },
   { key: "gesundheit", label: "Gesundheit / Praxis" },
   { key: "gastgewerbe", label: "Hotel / Pension" },
-
 ];
 
 export const QUELLEN: { key: string; label: string }[] = [
