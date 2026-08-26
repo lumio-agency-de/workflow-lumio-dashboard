@@ -96,6 +96,11 @@ model Prospect {
   plz     String @default("")
   ort     String @default("")
   website String @default("")
+  // Grobe Schaetzung des leadgen (checks/groesse.py: Mitarbeiterzahl im
+  // Text, sonst Rechtsform/Karriereseite/Standorte). Nicht zu verwechseln
+  // mit "mitarbeiter" weiter unten: das ist die recherchierte Zahl fuer die
+  // Anzeigen-Spur. Hier steht, was der Runner automatisch mitbringt.
+  groesse String @default("") // "klein" | "mittel" | "gross" | "" (unbekannt)
 
   // Bewertung (auto, jeder Lauf frischt sie auf)
   segment     String @default("") // "1 – Heiß (keine Website)" …
