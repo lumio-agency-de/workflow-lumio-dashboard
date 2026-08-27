@@ -6,9 +6,10 @@
 // noch den Standardtext des Gmail-Entwurfs.
 //
 // WICHTIG: Der Mailtext nennt bewusst KEINE Zahlen. Die oeffentlichen Preise
-// stehen im Anhang; Retainer- (99/149 EUR), Zusatzoptionen-, AI-Abo-Preise,
-// Stundensaetze und Rabatte gehoeren laut Preismodell ausschliesslich ins
-// Verkaufsgespraech und niemals in eine Kundenmail.
+// stehen im Anhang. Alle internen Konditionen (Retainer, Zusatzoptionen,
+// AI-Abo, Stundensaetze, Rabatte) gehoeren laut Preismodell ausschliesslich
+// ins Verkaufsgespraech und niemals in eine Kundenmail. Konkrete Zahlen dazu
+// stehen im privaten Firmen-Gedaechtnis, nicht in diesem Repo (public).
 import { INFO_SIGNATUR_HTML } from "@/lib/akquise";
 
 // Standardtext des Gmail-Entwurfs, an den das Preislisten-PDF gehaengt wird.
