@@ -13,8 +13,9 @@ async function main() {
   // --- Login-Konten ---------------------------------------------------------
   // Start-Passwoerter koennen ueber Umgebungsvariablen gesetzt werden,
   // sonst werden die Standardwerte unten benutzt. NACH dem ersten Login aendern!
+  // Nevio hat keinen Standardwert: ohne SEED_NEVIO_PASSWORD wird sein Konto nicht angelegt.
   const mikoPassword = process.env.SEED_MIKO_PASSWORD ?? "lumio-miko-2026";
-  const nevioPassword = process.env.SEED_NEVIO_PASSWORD ?? "***ENTFERNT***";
+  const nevioPassword = process.env.SEED_NEVIO_PASSWORD;
   const infoPassword = process.env.SEED_INFO_PASSWORD ?? "lumio-info-2026";
 
   // upsert = anlegen falls nicht vorhanden, sonst nichts ueberschreiben
@@ -28,15 +29,19 @@ async function main() {
     },
   });
 
-  await prisma.user.upsert({
-    where: { username: "nevio" },
-    update: {},
-    create: {
-      username: "nevio",
-      name: "Nevio Liebig",
-      passwordHash: await bcrypt.hash(nevioPassword, 10),
-    },
-  });
+  if (nevioPassword) {
+    await prisma.user.upsert({
+      where: { username: "nevio" },
+      update: {},
+      create: {
+        username: "nevio",
+        name: "Nevio Liebig",
+        passwordHash: await bcrypt.hash(nevioPassword, 10),
+      },
+    });
+  } else {
+    console.warn("SEED_NEVIO_PASSWORD fehlt - Konto 'nevio' wird nicht angelegt.");
+  }
 
   // Gemeinsamer Zugang fuers Team-Postfach (info@lumio-agency.de)
   await prisma.user.upsert({
