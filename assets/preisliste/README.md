@@ -19,7 +19,7 @@ cp ../../lumio-gedaechtnis/preisliste/Lumio-Preisliste.pdf assets/preisliste/
 ```
 
 (Pfad je nach Klon-Ort anpassen; das Gedaechtnis liegt bei Nevio unter
-`~/Dev/Agency/lumio-gedaechtnis/`.)
+`~/Dev/Claudes Bereich/Geschäftlich/Agency/lumio-gedaechtnis/`.)
 
 ## Warum hier und nicht in public/
 
